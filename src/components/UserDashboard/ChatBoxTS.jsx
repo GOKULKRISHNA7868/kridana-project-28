@@ -87,7 +87,58 @@ const ChatBox = () => {
 
     return () => unsub();
   }, []);
+  useEffect(() => {
+    if (!trainerId) return;
 
+    let unsub = null;
+
+    const loadUsersForStudent = async () => {
+      // 1️⃣ Get the main trainer (owner)
+      const trainerRef = doc(db, "trainers", trainerId);
+      const trainerSnap = await getDoc(trainerRef);
+
+      let mainTrainer = null;
+      if (trainerSnap.exists()) {
+        const tData = trainerSnap.data();
+        mainTrainer = {
+          id: trainerId,
+          uid: trainerId,
+          name: `${tData.firstName || ""} ${tData.lastName || ""}`.trim(),
+          role: "trainer",
+          profileImageUrl: tData.profileImageUrl || "",
+        };
+      }
+
+      // 2️⃣ Get other students
+      const qStudents = query(
+        collection(db, "trainerstudents"),
+        where("trainerId", "==", trainerId),
+      );
+      unsub = onSnapshot(qStudents, (snap) => {
+        const students = snap.docs.map((d) => {
+          const s = d.data();
+          return {
+            id: d.id,
+            uid: s.studentUid,
+            name: `${s.firstName || ""} ${s.lastName || ""}`.trim(),
+            role: "student",
+            profileImageUrl: s.studentPhotoUrl || s.profileImageUrl || "",
+          };
+        });
+
+        // Merge main trainer + students
+        const merged = mainTrainer ? [mainTrainer, ...students] : [...students];
+
+        setUsers(merged);
+      });
+    };
+
+    loadUsersForStudent();
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [trainerId]);
   /* ================= USERS ================= */
   useEffect(() => {
     if (!trainerId) return;
@@ -668,7 +719,8 @@ const ChatBox = () => {
                       src={getValidImage(u.profileImageUrl, u.name)}
                       className="w-9 h-9 rounded-full object-cover"
                     />
-                    <span>{u.name}</span>
+                    {/* Show 'You' if this is the logged-in user */}
+                    <span>{u.uid === user.uid ? "You" : u.name}</span>
                   </div>
 
                   {unreadCounts[[user?.uid, u.uid].sort().join("_")] > 0 && (

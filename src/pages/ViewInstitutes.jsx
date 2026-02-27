@@ -24,6 +24,7 @@ export default function ViewInstitutes() {
   const [minRating, setMinRating] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showSubCategoryDropdown, setShowSubCategoryDropdown] = useState(false);
+
   const categories = [
     "Martial Arts",
     "Team Ball Sports",
@@ -69,7 +70,7 @@ export default function ViewInstitutes() {
       "Lethwei",
       "Bajiquan",
       "Hung Gar",
-      "Praying Mantis Kung Fu"
+      "Praying Mantis Kung Fu",
     ],
     "Team Ball Sports": [
       "Football / Soccer",
@@ -90,7 +91,7 @@ export default function ViewInstitutes() {
       "Softball",
       "Wheelchair Rugby",
       "Dodgeball",
-      "Korfball"
+      "Korfball",
     ],
     "Racket Sports": [
       "Tennis",
@@ -110,7 +111,7 @@ export default function ViewInstitutes() {
       "Chaza",
       "Totem Tennis (Swingball)",
       "Matkot",
-      "Jombola"
+      "Jombola",
     ],
     Fitness: [
       "Gym Workout",
@@ -158,7 +159,7 @@ export default function ViewInstitutes() {
       "Toad in the Hole",
       "Bat and Trap",
       "Boccia",
-      "Gateball"
+      "Gateball",
     ],
     "Equestrian Sports": [
       "Horse Racing",
@@ -236,7 +237,7 @@ export default function ViewInstitutes() {
       "Nutrition",
       "Traditional & Alternative Therapies",
       "Rehabilitation",
-      "Lifestyle Coaching"
+      "Lifestyle Coaching",
     ],
     Dance: [
       "Bharatanatyam",
@@ -320,7 +321,7 @@ export default function ViewInstitutes() {
           images: d.data().images || [],
           videos: d.data().videos || [],
           reels: d.data().reels || [],
-        }))
+        })),
       );
 
       setLoading(false);
@@ -371,7 +372,6 @@ export default function ViewInstitutes() {
 
       {/* FILTERS */}
       <div className="grid grid-cols-1 md:grid-cols-[repeat(4,minmax(180px,1fr))] gap-4 mb-8">
-
         {/* Category */}
         {/* CATEGORY CUSTOM DROPDOWN */}
         <div className="relative">
@@ -401,7 +401,7 @@ rounded-md px-3 h-[45px] cursor-pointer`}
                     setSubCategory("");
                     setShowCategoryDropdown(false);
                   }}
-                 className="px-4 py-2 hover:bg-blue-600 hover:text-white cursor-pointer"
+                  className="px-4 py-2 hover:bg-blue-600 hover:text-white cursor-pointer"
                 >
                   {cat}
                 </div>
@@ -449,9 +449,7 @@ rounded-md px-3 h-[45px] cursor-pointer`}
         </div>
         {/* City */}
         <div>
-          <label className="block text-sm font-semibold mb-1">
-            City
-          </label>
+          <label className="block text-sm font-semibold mb-1">City</label>
           <select
             className="w-full bg-white border border-gray-300 rounded-md px-3 h-[42px]
             focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
@@ -462,11 +460,11 @@ rounded-md px-3 h-[45px] cursor-pointer`}
             {[
               ...new Set(
                 institutes
-                  .map((i) => i.city?.trim())   // 🔥 remove spaces
-                  .filter(Boolean)              // 🔥 remove null/empty
+                  .map((i) => i.city?.trim()) // 🔥 remove spaces
+                  .filter(Boolean), // 🔥 remove null/empty
               ),
             ]
-              .sort((a, b) => a.localeCompare(b))   // 🔥 alphabetical order
+              .sort((a, b) => a.localeCompare(b)) // 🔥 alphabetical order
               .map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -491,7 +489,6 @@ rounded-md px-3 h-[45px] cursor-pointer`}
             <option value="4">4★+</option>
           </select>
         </div>
-
       </div>
 
       {/* LIST */}

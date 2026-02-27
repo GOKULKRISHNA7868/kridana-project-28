@@ -47,7 +47,6 @@ const AnalyticsPage = () => {
   };
 
   /* ================= FETCH TOP REELS ================= */
-  /* ================= FETCH TOP REELS ================= */
   useEffect(() => {
     if (!user) return;
 
@@ -55,7 +54,6 @@ const AnalyticsPage = () => {
       const instituteSnap = await getDocs(
         query(collection(db, "trainers"), where("trainerId", "==", user.uid)),
       );
-
 
       let reelStats = [];
 
@@ -65,7 +63,6 @@ const AnalyticsPage = () => {
         if (Array.isArray(data.reels)) {
           for (let idx = 0; idx < data.reels.length; idx++) {
             const reelId = `trainer_${docu.id}_${idx}`;
-
 
             const viewsSnap = await getDocs(
               query(collection(db, "reelViews"), where("reelId", "==", reelId)),
@@ -87,7 +84,7 @@ const AnalyticsPage = () => {
             );
 
             reelStats.push({
-              title: data.instituteName,
+              title: data.instituteName || data.trainerName,
               views: viewsSnap.size,
               likes: likesSnap.size,
               dislikes: dislikeSnap.size,
@@ -121,17 +118,13 @@ const AnalyticsPage = () => {
     fetchTopReels();
   }, [user, activeTab]);
 
-
   /* ================= WORKFORCE ================= */
   useEffect(() => {
     if (!user) return;
 
     const fetchWorkforce = async () => {
       const studentsSnap = await getDocs(
-        query(
-          collection(db, "students"),
-          where("trainerId", "==", user.uid)
-        )
+        query(collection(db, "students"), where("trainerId", "==", user.uid)),
       );
 
       setCustomerStats({
@@ -143,30 +136,66 @@ const AnalyticsPage = () => {
     fetchWorkforce();
   }, [user]);
 
-  /* ================= GRAPH ================= */
+  /* ================= GRAPH REVENUE FROM FIRESTORE ================= */
   useEffect(() => {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
+    if (!user) return;
 
-    const generated = months.map((month) => ({
-      month,
-      revenue: Math.floor(Math.random() * 50000) + 10000,
-    }));
+    const fetchGraphData = async () => {
+      try {
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
 
-    setGraphData(generated);
-  }, []);
+        const monthNumber = (month) => {
+          const index = months.indexOf(month);
+          return index + 1 < 10 ? "0" + (index + 1) : "" + (index + 1);
+        };
+
+        const currentYear = new Date().getFullYear();
+        const data = [];
+
+        for (let m = 0; m < 12; m++) {
+          const monthStr = monthNumber(months[m]);
+
+          const feesSnap = await getDocs(
+            query(
+              collection(db, "institutesFees"),
+              where("trainerId", "==", user.uid),
+              where("month", "==", monthStr),
+            ),
+          );
+
+          let totalRevenue = 0;
+          feesSnap.forEach((doc) => {
+            totalRevenue += doc.data().paidAmount || 0;
+          });
+
+          data.push({
+            month: months[m],
+            revenue: totalRevenue,
+          });
+        }
+
+        setGraphData(data);
+      } catch (err) {
+        console.error("Error fetching revenue graph data:", err);
+      }
+    };
+
+    fetchGraphData();
+  }, [user]);
+
   /* ================= PAYROLL CALCULATIONS ================= */
   const highestMonth = graphData.reduce(
     (max, item) => (item.revenue > max.revenue ? item : max),
@@ -180,12 +209,12 @@ const AnalyticsPage = () => {
 
   const totalRevenue = graphData.reduce((sum, item) => sum + item.revenue, 0);
 
+  /* ================= RETURN ================= */
   return (
     <div className="p-6">
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6 relative">
         <h1 className="text-3xl font-bold">Trainer Performance Overview</h1>
-
 
         <div className="relative inline-block">
           <button
@@ -233,7 +262,6 @@ const AnalyticsPage = () => {
 
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-
         <div className="border p-4 rounded-lg bg-orange-50">
           <p>Profile Views</p>
           <p className="text-xl font-bold text-orange-600">
@@ -270,10 +298,11 @@ const AnalyticsPage = () => {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-2 capitalize ${activeTab === tab
-                ? "text-orange-600 border-b-2 border-orange-600 font-semibold"
-                : "text-gray-600"
-                }`}
+              className={`pb-2 capitalize ${
+                activeTab === tab
+                  ? "text-orange-600 border-b-2 border-orange-600 font-semibold"
+                  : "text-gray-600"
+              }`}
             >
               {`Most ${tab}`}
             </button>
@@ -282,7 +311,6 @@ const AnalyticsPage = () => {
 
         {/* TABLE */}
         <div className="hidden md:grid grid-cols-6 font-semibold text-orange-600 mb-4">
-
           <div>Videos</div>
           <div>Title</div>
           <div>Views</div>
@@ -315,8 +343,8 @@ const AnalyticsPage = () => {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <h2 className="text-xl font-semibold mt-10 mb-4">Payroll Overview</h2>
 
+      <h2 className="text-xl font-semibold mt-10 mb-4">Payroll Overview</h2>
       <div className="grid md:grid-cols-3 gap-6">
         {/* LEFT SIDE GRAPH */}
         <div className="md:col-span-2 bg-white shadow rounded-lg p-5">
@@ -367,8 +395,6 @@ const AnalyticsPage = () => {
         <h2 className="text-2xl font-bold mb-6">Workforce & Clients Metrics</h2>
 
         <div className="grid md:grid-cols-2 gap-6">
-          
-
           <div className="border p-6 rounded-xl bg-white">
             <h3 className="text-xl font-semibold">Customers</h3>
             <p>Joined: {customerStats.joined}</p>

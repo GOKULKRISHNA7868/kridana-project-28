@@ -353,6 +353,7 @@ export default function AddTrainerDetailsPage() {
     timings: "",
     phone: "",
     email: "",
+    monthlyFee: "",
     monthlyDate: "",
     address: "",
     aadharFiles: [],
@@ -370,6 +371,7 @@ export default function AddTrainerDetailsPage() {
     timings: "",
     phone: "",
     email: "",
+    monthlyFee: "",
     monthlyDate: "",
     address: "",
     aadharFiles: [],
@@ -452,6 +454,11 @@ export default function AddTrainerDetailsPage() {
     }
 
     if (step === 2) {
+      if (!formData.monthlyFee.trim())
+        newErrors.monthlyFee = "Monthly Fee is required";
+      else if (isNaN(formData.monthlyFee) || Number(formData.monthlyFee) <= 0)
+        newErrors.monthlyFee = "Monthly Fee must be a valid number";
+
       if (!formData.monthlyDate)
         newErrors.monthlyDate = "Monthly payment date required";
 
@@ -629,6 +636,7 @@ export default function AddTrainerDetailsPage() {
         customerUid,
         instituteId: user.uid,
         role: "customer",
+        monthlyFee: Number(formData.monthlyFee),
         createdAt: serverTimestamp(),
       });
 
@@ -1095,6 +1103,29 @@ export default function AddTrainerDetailsPage() {
 
         {step === 2 && (
           <div className="mt-6">
+            <div className="flex flex-col">
+              <label className="text-sm font-semibold mb-2">
+                Monthly Fee Amount* (INR)
+              </label>
+              <input
+                type="number"
+                min={0}
+                className={inputClass}
+                value={formData.monthlyFee}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    monthlyFee: e.target.value,
+                  }))
+                }
+                placeholder="Enter monthly fee amount"
+              />
+              {errors.monthlyFee && (
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.monthlyFee}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
               <div className="flex flex-col">
                 <label className="text-sm font-semibold mb-2">

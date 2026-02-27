@@ -1,21 +1,32 @@
 import React, { useEffect, useState } from "react";
 import { db, auth } from "../firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   MapPin,
   Phone,
   Mail,
-  Globe,
   Users,
   UserCheck,
   Calendar,
   Award,
   Building2,
+  ShieldCheck,
+  Wallet,
+  BookOpen,
+  Star,
+  BadgeCheck,
+  Landmark,
+  CreditCard,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { getAuth } from "firebase/auth";
 
 export default function InstituteDetailsPage() {
   const { id } = useParams();
@@ -25,27 +36,46 @@ export default function InstituteDetailsPage() {
   useEffect(() => {
     const load = async () => {
       const snap = await getDoc(doc(db, "institutes", id));
-      if (snap.exists())
+      if (snap.exists()) {
         setInst({
           id: snap.id,
           ...snap.data(),
-
-          // ✅ Media Arrays
-          images: snap.data().images || [],
-          videos: snap.data().videos || [],
-          reels: snap.data().reels || [],
         });
+      }
     };
     load();
   }, [id]);
+  const startInstituteChat = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login to chat with the institute.");
+      return;
+    }
 
+    const chatId = [user.uid, inst.id].sort().join("_"); // unique chat id
+    const chatRef = doc(db, "chats", chatId);
+    const snap = await getDoc(chatRef);
+
+    if (!snap.exists()) {
+      // Create new chat if not exists
+      await setDoc(chatRef, {
+        type: "individual",
+        instituteId: inst.id,
+        members: [user.uid, inst.id],
+        createdAt: serverTimestamp(),
+        lastMessage: "",
+      });
+    }
+
+    // Navigate to ChatBox page or open modal
+    navigate(`/chat/${chatId}`, { state: { chatName: inst.instituteName } });
+  };
   const handleRating = async (star) => {
     const user = auth.currentUser;
     if (!user || !inst) return;
 
     const ratings = inst.ratingsByUser || {};
 
-    // 🚫 BLOCK multiple reviews
     if (ratings[user.uid] !== undefined) {
       alert("You have already submitted your review.");
       return;
@@ -53,7 +83,6 @@ export default function InstituteDetailsPage() {
 
     const count = inst.ratingCount || 0;
     const avg = inst.rating || 0;
-
     const newAvg = (avg * count + star) / (count + 1);
 
     await updateDoc(doc(db, "institutes", id), {
@@ -62,7 +91,6 @@ export default function InstituteDetailsPage() {
       [`ratingsByUser.${user.uid}`]: star,
     });
 
-    // 🔄 Update UI
     setInst((prev) => ({
       ...prev,
       rating: newAvg,
@@ -77,55 +105,47 @@ export default function InstituteDetailsPage() {
   if (!inst) return null;
 
   const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(
-    inst.address,
+    `${inst.landmark}, ${inst.city}, ${inst.state}, ${inst.country}`,
   )}&output=embed`;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-white px-5 md:px-24 py-10"
+      className="min-h-screen bg-gray-50 px-5 md:px-24 py-10"
     >
-      {/* 🔙 Back */}
+      {/* Back */}
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-[#ff7a00] font-semibold mb-6 hover:gap-3 transition-all"
+        className="flex items-center gap-2 text-orange-600 font-semibold mb-6 hover:gap-3 transition-all"
       >
-        <ArrowLeft size={20} /> Back to Institutes
+        <ArrowLeft size={20} /> Back
       </button>
 
-      {/* 🏫 HEADER */}
-
-      <div className="flex flex-col lg:flex-row gap-10 items-start mb-14 bg-white rounded-3xl shadow-xl border border-orange-100 p-8">
-        {/* 👤 PROFILE IMAGE */}
-        <div className="flex flex-col items-center text-center lg:text-left">
+      {/* HEADER */}
+      <div className="bg-white rounded-3xl shadow-xl p-8 grid lg:grid-cols-[350px_1fr] gap-10">
+        {/* LEFT */}
+        <div className="flex flex-col items-center text-center">
           <img
-            src={
-              inst.profileImageUrl ||
-              "https://via.placeholder.com/200?text=Trainer"
-            }
-            alt="Trainer Profile"
+            src={inst.profileImageUrl}
             className="w-44 h-44 rounded-full object-cover border-4 border-orange-400 shadow-lg"
           />
 
-          <h1 className="text-3xl lg:text-4xl font-extrabold text-[#ff7a00] mt-5">
+          <h1 className="text-3xl font-extrabold text-orange-600 mt-4">
             {inst.instituteName}
           </h1>
 
-          <p className="flex items-center justify-center lg:justify-start gap-2 text-gray-500 mt-3 text-sm">
-            <MapPin size={18} className="text-orange-500" />
-            {inst.address}, {inst.city}, {inst.state}
-          </p>
+          <p className="text-gray-500 mt-2">{inst.organizationType}</p>
 
-          {/* ⭐ Rating */}
-          <div className="flex gap-1 my-4 items-center justify-center lg:justify-start">
+          {/* Rating */}
+          <div className="flex gap-1 mt-3">
             {[1, 2, 3, 4, 5].map((s) => (
               <span
                 key={s}
                 onClick={() => handleRating(s)}
-                className={`text-3xl cursor-pointer transition duration-200 ${
+                className={`text-2xl cursor-pointer ${
                   inst.ratingsByUser?.[auth.currentUser?.uid] >= s
-                    ? "text-yellow-400 scale-110 drop-shadow-md"
+                    ? "text-yellow-400"
                     : "text-gray-300 hover:text-yellow-300"
                 }`}
               >
@@ -134,177 +154,207 @@ export default function InstituteDetailsPage() {
             ))}
           </div>
 
-          <p className="font-semibold text-gray-700 text-sm">
-            Average Rating:{" "}
-            <span className="text-orange-600 font-bold">
-              {inst.rating ? inst.rating.toFixed(1) : "No ratings"}
-            </span>{" "}
-            {inst.ratingCount ? (
-              <span className="text-gray-500">
-                ({inst.ratingCount} reviews)
-              </span>
-            ) : (
-              ""
-            )}
+          <p className="text-sm font-semibold mt-1">
+            {inst.rating?.toFixed(1) || "0.0"} ⭐ ({inst.ratingCount || 0}{" "}
+            reviews)
           </p>
 
-          {/* 📞 CONTACT BUTTONS */}
-          <div className="flex flex-wrap justify-center lg:justify-start gap-4 mt-6">
-            <a
-              href={`tel:${inst.phoneNumber}`}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#ff7a00] text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 transition"
-            >
+          {/* Buttons */}
+          <div className="flex flex-col gap-3 w-full mt-6">
+            <a href={`tel:${inst.phoneNumber}`} className="btn-primary">
               <Phone size={18} /> Call
             </a>
 
             <button
               onClick={() => navigate(`/book-demo/${inst.id}`)}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-green-600 text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 transition"
+              className="btn-success"
             >
               📅 Book Demo Class
             </button>
+            {/* Chat with Institute */}
+            {auth.currentUser && (
+              <button
+                onClick={() => startInstituteChat()}
+                className="btn-primary"
+              >
+                💬 Chat with Institute
+              </button>
+            )}
 
-            <a
-              href={`mailto:${inst.email}`}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl border-2 border-[#ff7a00] text-[#ff7a00] font-semibold hover:bg-[#ff7a00] hover:text-white shadow-sm hover:shadow-lg transition"
-            >
+            <a href={`mailto:${inst.email}`} className="btn-outline">
               <Mail size={18} /> Email
             </a>
           </div>
         </div>
 
-        {/* 🗺️ MAP */}
-        <div className="w-full lg:w-[55%] h-[320px] rounded-3xl overflow-hidden border border-orange-200 shadow-md">
-          <iframe
-            title="Institute Location"
-            src={mapSrc}
-            className="w-full h-full"
-            loading="lazy"
-          />
+        {/* RIGHT */}
+        <div className="grid gap-6">
+          <InfoGrid inst={inst} />
+
+          {/* MAP */}
+          <div className="w-full h-[300px] rounded-2xl overflow-hidden border">
+            <iframe src={mapSrc} className="w-full h-full" loading="lazy" />
+          </div>
         </div>
       </div>
 
-      {/* 📘 DETAILS */}
-      <div className="grid md:grid-cols-2 gap-10 mt-12">
-        <Section icon={Building2} title="About Institute">
-          {inst.aboutUs || inst.description}
-        </Section>
+      {/* SECTIONS */}
+      <div className="mt-14 grid gap-10">
+        {/* ABOUT */}
+        <Card title="About Institute" icon={Building2}>
+          {inst.description}
+        </Card>
 
-        <Section icon={Award} title="Achievements">
-          {inst.achievements || "—"}
-        </Section>
+        {/* FOUNDER */}
+        <Card title="Founder & Leadership" icon={BadgeCheck}>
+          <p>
+            <b>Founder:</b> {inst.founderName}
+          </p>
+          <p>
+            <b>Designation:</b> {inst.designation}
+          </p>
+        </Card>
 
-        <Section icon={Calendar} title="Founded">
-          {inst.yearFounded}
-        </Section>
-
-        <Section icon={Users} title="Students">
-          {inst.studentsCount}
-        </Section>
-
-        <Section icon={UserCheck} title="Trainers">
-          {inst.trainersCount}
-        </Section>
-
-        <Section title="Facilities">{inst.facilities}</Section>
-      </div>
-
-      {/* 🧩 CATEGORIES */}
-      <div className="mt-14">
-        <h2 className="text-3xl font-bold text-[#ff7a00] mb-6">
-          Categories & Sub Categories
-        </h2>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.entries(inst.categories || {}).map(([cat, subs]) => (
-            <div
-              key={cat}
-              className="border rounded-2xl p-5 shadow-sm hover:shadow-md transition"
-            >
-              <h3 className="font-bold text-lg mb-2">{cat}</h3>
-              <ul className="list-disc ml-5 text-gray-700">
-                {subs.map((s, i) => (
-                  <li key={i}>{s}</li>
-                ))}
-              </ul>
+        {/* ACHIEVEMENTS */}
+        <Card title="Achievements" icon={Award}>
+          {["district", "state", "national"].map((lvl) => (
+            <div key={lvl} className="mb-3">
+              <h4 className="font-bold capitalize">{lvl}</h4>
+              <p>
+                🥇 Gold: {inst.achievements?.[lvl]?.gold || 0} | 🥈 Silver:{" "}
+                {inst.achievements?.[lvl]?.silver || 0} | 🥉 Bronze:{" "}
+                {inst.achievements?.[lvl]?.bronze || 0}
+              </p>
             </div>
           ))}
-        </div>
+        </Card>
+
+        {/* TRAINING PROGRAM */}
+        <Card title="Training Program" icon={BookOpen}>
+          {Object.entries(inst.trainingProgram || {}).map(([k, v]) => (
+            <p key={k}>
+              <b>{k}:</b> {v}
+            </p>
+          ))}
+        </Card>
+
+        {/* PRICING */}
+        <Card title="Pricing & Fees" icon={Wallet}>
+          <p>Monthly Fees: ₹{inst.pricing?.monthlyFees}</p>
+          <p>Registration Fees: ₹{inst.pricing?.registrationFees}</p>
+          <p>Uniform Cost: ₹{inst.pricing?.uniformCost}</p>
+          <p>Payment Methods: {inst.pricing?.paymentMethods}</p>
+          <p>Refund Policy: {inst.pricing?.refundPolicy}</p>
+        </Card>
+
+        {/* POLICIES */}
+        <Card title="Policies & Agreements" icon={ShieldCheck}>
+          <p>
+            Merchant Policy: {inst.agreements?.merchantPolicy ? "✅" : "❌"}
+          </p>
+          <p>Payment Policy: {inst.agreements?.paymentPolicy ? "✅" : "❌"}</p>
+          <p>Privacy Policy: {inst.agreements?.privacyPolicy ? "✅" : "❌"}</p>
+          <p>
+            Terms & Conditions:{" "}
+            {inst.agreements?.termsAndConditions ? "✅" : "❌"}
+          </p>
+        </Card>
+
+        {/* MEDIA */}
+        <Card title="Media Gallery" icon={Star}>
+          <MediaGrid
+            title="Training Images"
+            data={inst.mediaGallery?.trainingImages}
+          />
+          <MediaGrid
+            title="Facility Images"
+            data={inst.mediaGallery?.facilityImages}
+          />
+          <MediaGrid
+            title="Equipment Images"
+            data={inst.mediaGallery?.equipmentImages}
+          />
+          <MediaGrid
+            title="Uniform Images"
+            data={inst.mediaGallery?.uniformImages}
+          />
+        </Card>
       </div>
-      {/* 📸 MEDIA GALLERY */}
-      {(inst.images?.length > 0 ||
-        inst.videos?.length > 0 ||
-        inst.reels?.length > 0) && (
-        <div className="mt-16">
-          <h2 className="text-3xl font-bold text-[#ff7a00] mb-6">
-            Institute Media Gallery
-          </h2>
-
-          {/* ✅ Images */}
-          {inst.images?.length > 0 && (
-            <div className="mb-10">
-              <h3 className="text-xl font-semibold mb-3">📷 Photos</h3>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {inst.images.map((url, idx) => (
-                  <img
-                    key={idx}
-                    src={url}
-                    alt="Institute"
-                    className="w-full h-40 object-cover rounded-xl border shadow-sm hover:scale-105 transition"
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ✅ Videos */}
-          {inst.videos?.length > 0 && (
-            <div className="mb-10">
-              <h3 className="text-xl font-semibold mb-3">🎥 Videos</h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {inst.videos.map((url, idx) => (
-                  <video
-                    key={idx}
-                    src={url}
-                    controls
-                    className="w-full h-56 rounded-xl border shadow-sm"
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ✅ Reels */}
-          {inst.reels?.length > 0 && (
-            <div>
-              <h3 className="text-xl font-semibold mb-3">📱 Reels</h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {inst.reels.map((url, idx) => (
-                  <video
-                    key={idx}
-                    src={url}
-                    controls
-                    className="w-full h-56 rounded-xl border shadow-sm"
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </motion.div>
   );
 }
 
-/* 🔹 Reusable Section */
-const Section = ({ title, icon: Icon, children }) => (
-  <div className="bg-gray-50 p-6 rounded-2xl">
-    <h2 className="flex items-center gap-2 text-xl font-bold text-[#ff7a00] mb-2">
+/* COMPONENTS */
+
+const Card = ({ title, icon: Icon, children }) => (
+  <div className="bg-white rounded-2xl shadow-md p-6">
+    <h2 className="flex items-center gap-2 text-xl font-bold text-orange-600 mb-4">
       {Icon && <Icon size={20} />} {title}
     </h2>
-    <p className="text-gray-700 leading-relaxed">{children}</p>
+    <div className="text-gray-700 space-y-2">{children}</div>
   </div>
 );
+
+const MediaGrid = ({ title, data }) => {
+  if (!data?.length) return null;
+  return (
+    <div className="mb-5">
+      <h3 className="font-semibold mb-2">{title}</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {data.map((url, i) => (
+          <img
+            key={i}
+            src={url}
+            className="rounded-xl h-40 w-full object-cover border"
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const InfoGrid = ({ inst }) => (
+  <div className="grid md:grid-cols-2 gap-4">
+    <InfoItem
+      icon={MapPin}
+      label="Location"
+      value={`${inst.city}, ${inst.state}`}
+    />
+    <InfoItem
+      icon={Users}
+      label="Students"
+      value={inst.customers?.length || 0}
+    />
+    <InfoItem
+      icon={UserCheck}
+      label="Trainers"
+      value={inst.trainers?.length || 0}
+    />
+    <InfoItem icon={Calendar} label="Founded" value={inst.yearFounded} />
+    <InfoItem icon={Landmark} label="District" value={inst.district} />
+    <InfoItem
+      icon={CreditCard}
+      label="UPI"
+      value={inst.upiDetails || "Not Provided"}
+    />
+  </div>
+);
+
+const InfoItem = ({ icon: Icon, label, value }) => (
+  <div className="flex items-center gap-3 bg-gray-100 p-4 rounded-xl">
+    <Icon className="text-orange-500" />
+    <div>
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className="font-semibold">{value}</p>
+    </div>
+  </div>
+);
+
+/* BUTTON STYLES */
+const style = document.createElement("style");
+style.innerHTML = `
+.btn-primary{display:flex;justify-content:center;align-items:center;gap:8px;padding:12px;border-radius:14px;background:#ff7a00;color:white;font-weight:600}
+.btn-success{display:flex;justify-content:center;align-items:center;gap:8px;padding:12px;border-radius:14px;background:#16a34a;color:white;font-weight:600}
+.btn-outline{display:flex;justify-content:center;align-items:center;gap:8px;padding:12px;border-radius:14px;border:2px solid #ff7a00;color:#ff7a00;font-weight:600}
+`;
+document.head.appendChild(style);

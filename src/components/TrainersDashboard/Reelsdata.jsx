@@ -164,75 +164,70 @@ const AnalyticsPage = () => {
 
     fetchTopReels();
   }, [user, activeTab]);
-
-  /* ================= WORKFORCE (STATIC SAFE) ================= */
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchWorkforce = async () => {
-      const trainersSnap = await getDocs(
-        query(
-          collection(db, "trainerstudents"),
-          where("trainerId", "==", user.uid),
-        ),
-      );
-
-      const studentsSnap = await getDocs(
-        query(
-          collection(db, "trainerstudents"),
-          where("trainerId", "==", user.uid),
-        ),
-      );
-
-      setEmployeeStats({
-        joined: trainersSnap.size || 0,
-        left: 0,
-      });
-
-      setCustomerStats({
-        joined: studentsSnap.size || 0,
-        left: 0,
-      });
-    };
-
-    fetchWorkforce();
-  }, [user]);
   const handlePlayReel = (videoUrl) => {
-    console.log("🎥 VIDEO URL:", videoUrl);
-
-    if (!videoUrl) {
-      console.error("❌ Missing video URL");
-      return;
-    }
-
     setActiveVideoUrl(videoUrl);
     setShowVideoPopup(true);
   };
-
-  /* ================= GRAPH (STATIC SAFE) ================= */
+  /* ================= WORKFORCE (STATIC SAFE) ================= */
+  /* ================= GRAPH REVENUE FROM FIRESTORE ================= */
   useEffect(() => {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
+    if (!user) return;
 
-    const generated = months.map((month) => ({
-      month,
-      revenue: Math.floor(Math.random() * 50000) + 10000,
-    }));
+    const fetchGraphData = async () => {
+      try {
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
 
-    setGraphData(generated);
-  }, []);
+        const monthNumber = (month) => {
+          const index = months.indexOf(month);
+          return index + 1 < 10 ? "0" + (index + 1) : "" + (index + 1);
+        };
+
+        const currentYear = new Date().getFullYear();
+        const data = [];
+
+        for (let m = 0; m < 12; m++) {
+          const monthStr = monthNumber(months[m]);
+
+          const feesSnap = await getDocs(
+            query(
+              collection(db, "institutesFees"),
+              where("trainerId", "==", user.uid),
+              where("month", "==", monthStr),
+            ),
+          );
+
+          let totalRevenue = 0;
+          feesSnap.forEach((doc) => {
+            totalRevenue += doc.data().paidAmount || 0;
+          });
+
+          data.push({
+            month: months[m],
+            revenue: totalRevenue,
+          });
+        }
+
+        setGraphData(data);
+      } catch (err) {
+        console.error("Error fetching revenue graph data:", err);
+      }
+    };
+
+    fetchGraphData();
+  }, [user]);
 
   /* ================= PAYROLL CALCULATIONS ================= */
   const highestMonth = graphData.reduce(
@@ -254,23 +249,23 @@ const AnalyticsPage = () => {
         <h1 className="text-3xl font-bold">Growth & Performance Overview</h1>
 
         <div className="relative inline-block">
-<button
-  onClick={() => setShowDropdown(!showDropdown)}
-  className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-semibold shadow-md flex items-center gap-2"
->
-  <span>
-    {filterMonths === 1 && "1 Month"}
-    {filterMonths === 3 && "3 Months"}
-    {filterMonths === 6 && "6 Months"}
-  </span>
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-semibold shadow-md flex items-center gap-2"
+          >
+            <span>
+              {filterMonths === 1 && "1 Month"}
+              {filterMonths === 3 && "3 Months"}
+              {filterMonths === 6 && "6 Months"}
+            </span>
 
-  <ChevronDown
-    size={16}
-    className={`transition-transform duration-200 ${
-      showDropdown ? "rotate-180" : ""
-    }`}
-  />
-</button>
+            <ChevronDown
+              size={16}
+              className={`transition-transform duration-200 ${
+                showDropdown ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
           {showDropdown && (
             <div className="absolute right-0 mt-3 w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
@@ -372,7 +367,7 @@ const AnalyticsPage = () => {
         {topReels.slice(0, 5).map((reel, i) => (
           <div key={i} className="grid grid-cols-6 items-center py-4 border-t">
             <div
-              onClick={() => handlePlayReel(reel.videoUrl)}
+              onClick={() => handlePlayReel(reel.videoUrl)} // ✅ Now this works
               className="w-20 h-14 bg-gray-300 rounded-md cursor-pointer flex items-center justify-center text-xs font-semibold"
             >
               ▶ Play
@@ -422,8 +417,8 @@ const AnalyticsPage = () => {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <h2 className="text-xl font-semibold mt-10 mb-4">Payroll Overview</h2>
 
+      <h2 className="text-xl font-semibold mt-10 mb-4">Payroll Overview</h2>
       <div className="grid md:grid-cols-3 gap-6">
         {/* LEFT SIDE GRAPH */}
         <div className="md:col-span-2 bg-white shadow rounded-lg p-5">

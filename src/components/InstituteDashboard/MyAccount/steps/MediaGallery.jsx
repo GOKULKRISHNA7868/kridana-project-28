@@ -17,7 +17,59 @@ const MediaGallery = ({ setStep }) => {
     equipmentImages: [],
     uniformImages: [],
   });
+  // Add this above the return statement (inside MediaGallery component)
 
+  // ================= REELS UPLOAD =================
+  const [reelsUploading, setReelsUploading] = useState(false);
+  const [reelsUploadMsg, setReelsUploadMsg] = useState("");
+
+  const handleReelsUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    setReelsUploading(true);
+    setReelsUploadMsg("");
+
+    try {
+      const uploadedUrls = [];
+
+      for (const file of files) {
+        const url = await uploadToCloudinary(file, "video"); // 👈 video type
+        if (url) uploadedUrls.push(url);
+      }
+
+      if (uploadedUrls.length > 0) {
+        // Save to Firestore in "reels" array (outside mediaGallery)
+        const docRef = doc(db, "institutes", user.uid);
+        const docSnap = await getDoc(docRef);
+
+        const existingReels =
+          docSnap.exists() && Array.isArray(docSnap.data().reels)
+            ? docSnap.data().reels
+            : [];
+
+        await setDoc(
+          docRef,
+          {
+            reels: [...existingReels, ...uploadedUrls],
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
+
+        setReelsUploadMsg(
+          `✅ Uploaded ${uploadedUrls.length} reel(s) successfully!`,
+        );
+      }
+    } catch (err) {
+      console.error("Reels Upload Error:", err);
+      alert("Failed to upload reels: " + err.message);
+    } finally {
+      setReelsUploading(false);
+      setTimeout(() => setReelsUploadMsg(""), 4000);
+      e.target.value = ""; // reset input
+    }
+  };
   /* ================= LOAD DATA ================= */
   useEffect(() => {
     const fetchData = async () => {
@@ -197,7 +249,33 @@ const MediaGallery = ({ setStep }) => {
             </div>
           ))}
         </div>
+        {/* ================= REELS UPLOAD UI ================= */}
+        <div className="flex flex-col mt-6">
+          <label className="text-sm font-medium mb-2">
+            Upload Reels (Videos)
+          </label>
 
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept="video/*"
+              multiple
+              onChange={handleReelsUpload}
+              className="hidden"
+            />
+
+            <div className="border border-gray-300 rounded-md px-3 py-2 flex justify-between items-center hover:border-orange-500 transition">
+              <span className="text-gray-500">
+                {reelsUploading
+                  ? "Uploading..."
+                  : reelsUploadMsg
+                    ? reelsUploadMsg
+                    : "Upload Reels"}
+              </span>
+              <img src="/upload.png" alt="upload" className="w-5 h-5" />
+            </div>
+          </label>
+        </div>
         {/* BUTTONS */}
         <div className="flex flex-col sm:flex-row justify-end gap-4 mt-8">
           <button

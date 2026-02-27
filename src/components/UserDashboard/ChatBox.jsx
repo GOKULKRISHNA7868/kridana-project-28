@@ -87,7 +87,37 @@ const ChatBox = () => {
 
     return () => unsub();
   }, []);
+  /* ================= MAIN INSTITUTE OWNER ================= */
+  useEffect(() => {
+    if (!instituteId) return;
 
+    const loadOwner = async () => {
+      const instRef = doc(db, "institutes", instituteId); // 👑 OWNER
+      const instSnap = await getDoc(instRef);
+
+      if (instSnap.exists()) {
+        const data = instSnap.data();
+
+        const ownerUser = {
+          id: instituteId,
+          uid: instituteId, // 🔑 important: UID = instituteId
+          name:
+            `${data.ownerFirstName || data.firstName || ""} ${data.ownerLastName || data.lastName || ""}`.trim() ||
+            "Institute Admin",
+          role: "owner",
+          profileImageUrl: data.ownerPhotoUrl || data.profileImageUrl || "",
+        };
+
+        setUsers((prev) => {
+          const exists = prev.find((u) => u.uid === instituteId);
+          if (exists) return prev; // avoid duplicates
+          return [ownerUser, ...prev]; // 👑 owner always on top
+        });
+      }
+    };
+
+    loadOwner();
+  }, [instituteId]);
   /* ================= USERS ================= */
   useEffect(() => {
     if (!instituteId) return;
@@ -657,27 +687,33 @@ const ChatBox = () => {
                   )}
                 </div>
               ))
-            : users.map((u) => (
-                <div
-                  key={u.uid}
-                  onClick={() => startChat(u)}
-                  className="px-4 py-3 border-b hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={getValidImage(u.profileImageUrl, u.name)}
-                      className="w-9 h-9 rounded-full object-cover"
-                    />
-                    <span>{u.name}</span>
-                  </div>
+            : users.map((u) => {
+                const isCurrentUser = u.uid === user?.uid;
+                const chatId = [user?.uid, u.uid].sort().join("_");
+                return (
+                  <div
+                    key={u.uid}
+                    onClick={() => startChat(u)}
+                    className="px-4 py-3 border-b hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={getValidImage(u.profileImageUrl, u.name)}
+                        className="w-9 h-9 rounded-full object-cover"
+                      />
+                      <span>
+                        {u.name} {isCurrentUser && "(You)"}
+                      </span>
+                    </div>
 
-                  {unreadCounts[[user?.uid, u.uid].sort().join("_")] > 0 && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                      {unreadCounts[[user?.uid, u.uid].sort().join("_")]}
-                    </span>
-                  )}
-                </div>
-              ))}
+                    {unreadCounts[chatId] > 0 && (
+                      <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        {unreadCounts[chatId]}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
         </div>
       </div>
     </div>

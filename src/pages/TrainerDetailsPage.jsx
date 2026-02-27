@@ -11,13 +11,24 @@ import {
   Star,
   Award,
   Calendar,
-  Users,
-  UserCheck,
   Building2,
   Globe,
+  Users,
+  BadgeCheck,
+  GraduationCap,
+  ShieldCheck,
+  CreditCard,
+  Landmark,
+  Briefcase,
+  Image,
+  Video,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { getAuth } from "firebase/auth";
+import { setDoc, serverTimestamp } from "firebase/firestore";
+const fadeUp = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export default function TrainerDetailsPage() {
   const { id } = useParams();
@@ -37,12 +48,7 @@ export default function TrainerDetailsPage() {
     if (!user || !trainer) return;
 
     const ratings = trainer.ratingsByUser || {};
-
-    // ✅ Only one rating per user
-    if (ratings[user.uid] !== undefined) {
-      alert("You have already submitted your review.");
-      return;
-    }
+    if (ratings[user.uid] !== undefined) return alert("Already rated");
 
     const count = trainer.ratingCount || 0;
     const avg = trainer.rating || 0;
@@ -61,267 +67,368 @@ export default function TrainerDetailsPage() {
       ratingsByUser: { ...ratings, [user.uid]: star },
     }));
   };
+  const startTrainerChat = async () => {
+    const user = auth.currentUser;
 
-  if (!trainer)
-    return (
-      <div className="min-h-screen flex justify-center items-center text-xl font-semibold text-gray-600">
-        Loading Trainer Details...
-      </div>
+    if (!user) {
+      alert("Please login to chat with trainer");
+      navigate("/login");
+      return;
+    }
+
+    const chatId = [user.uid, trainer.id].sort().join("_");
+
+    const chatRef = doc(db, "chats", chatId);
+
+    await setDoc(
+      chatRef,
+      {
+        type: "individual",
+        members: [user.uid, trainer.id],
+        trainerId: trainer.id,
+        createdAt: serverTimestamp(),
+        lastAt: serverTimestamp(),
+        lastMessage: "",
+      },
+      { merge: true },
     );
 
+    navigate(`/chat/${chatId}`, {
+      state: {
+        chatName:
+          trainer.trainerName ||
+          `${trainer.firstName} ${trainer.lastName}` ||
+          "Trainer",
+        chatType: "trainer",
+      },
+    });
+  };
+  if (!trainer) {
+    return (
+      <div className="min-h-screen flex justify-center items-center text-xl font-semibold">
+        Loading Trainer Profile...
+      </div>
+    );
+  }
+
   const mapSrc = `https://www.google.com/maps?q=${encodeURIComponent(
-    trainer.address || `${trainer.latitude},${trainer.longitude}`,
+    trainer.fullAddress || `${trainer.latitude},${trainer.longitude}`,
   )}&output=embed`;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-white px-5 md:px-24 py-10"
-    >
-      {/* 🔙 Back */}
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-[#ff7a00] font-semibold mb-6 hover:gap-3 transition-all"
+    <div className="min-h-screen bg-[#fafafa]">
+      {/* ================= HEADER ================= */}
+      <motion.section
+        initial="hidden"
+        animate="visible"
+        variants={fadeUp}
+        transition={{ duration: 0.6 }}
+        className="bg-white px-5 md:px-24 py-10 shadow-sm"
       >
-        <ArrowLeft size={20} /> Back to Trainers
-      </button>
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-[#ff7a00] font-semibold mb-6 hover:gap-3 transition-all"
+        >
+          <ArrowLeft size={20} /> Back
+        </button>
 
-      {/* ✅ PROFILE IMAGE + HEADER */}
-      <div className="flex flex-col md:flex-row gap-8 items-center mb-10">
-        <img
-          src={
-            trainer.profileImageUrl ||
-            "https://via.placeholder.com/200?text=Trainer"
-          }
-          alt="Trainer Profile"
-          className="w-44 h-44 rounded-full object-cover border-4 border-orange-400 shadow-md"
-        />
+        <div className="flex flex-col md:flex-row gap-10 items-center">
+          <img
+            src={trainer.profileImageUrl}
+            className="w-52 h-52 rounded-full object-cover border-4 border-orange-400 shadow-lg"
+          />
 
-        <div>
-          <h1 className="text-4xl font-bold text-[#ff7a00]">
-            {trainer.trainerName || `${trainer.firstName} ${trainer.lastName}`}
-          </h1>
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold text-[#ff7a00]">
+              {trainer.trainerName ||
+                `${trainer.firstName} ${trainer.lastName}`}
+            </h1>
 
-          <p className="flex items-center gap-2 text-gray-600 mt-3">
-            <MapPin size={18} /> {trainer.address}, {trainer.city},{" "}
-            {trainer.state}
-          </p>
+            <p className="text-gray-500 mt-1">
+              {trainer.designation || "Trainer"} • {trainer.organization || "—"}
+            </p>
 
-          {/* ⭐ Rating */}
-          <div className="flex gap-2 my-4 items-center">
-            {[1, 2, 3, 4, 5].map((s) => {
-              const alreadyRated =
-                trainer.ratingsByUser?.[auth.currentUser?.uid] !== undefined;
-              return (
-                <span
-                  key={s}
-                  onClick={() => !alreadyRated && handleRating(s)}
-                  className={`text-3xl transition ${
-                    trainer.ratingsByUser?.[auth.currentUser?.uid] >= s
-                      ? "text-yellow-400 scale-110"
-                      : "text-gray-300"
-                  } ${
-                    alreadyRated
-                      ? "cursor-not-allowed opacity-60"
-                      : "cursor-pointer"
-                  }`}
-                >
-                  <Star />
-                </span>
-              );
-            })}
-            <span className="ml-2 font-semibold text-gray-700">
-              {trainer.rating ? trainer.rating.toFixed(1) : "No ratings"}{" "}
-              {trainer.ratingCount ? `(${trainer.ratingCount})` : ""}
-            </span>
+            <p className="flex items-center gap-2 text-gray-600 mt-3">
+              <MapPin size={18} />
+              {trainer.fullAddress || trainer.locationName}
+            </p>
+
+            {/* ⭐ Rating */}
+            <div className="flex gap-2 my-4 items-center">
+              {[1, 2, 3, 4, 5].map((s) => {
+                const alreadyRated =
+                  trainer.ratingsByUser?.[auth.currentUser?.uid] !== undefined;
+                return (
+                  <span
+                    key={s}
+                    onClick={() => !alreadyRated && handleRating(s)}
+                    className={`text-3xl ${
+                      trainer.ratingsByUser?.[auth.currentUser?.uid] >= s
+                        ? "text-yellow-400"
+                        : "text-gray-300"
+                    } ${alreadyRated ? "opacity-60" : "cursor-pointer"}`}
+                  >
+                    <Star />
+                  </span>
+                );
+              })}
+              <span className="ml-2 font-semibold">
+                {trainer.rating?.toFixed(1) || "No ratings"} (
+                {trainer.ratingCount || 0})
+              </span>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <Stat
+                icon={Users}
+                label="Students"
+                value={trainer.students?.length || 0}
+              />
+              <Stat
+                icon={Calendar}
+                label="Experience"
+                value={trainer.experience || "—"}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-4 mt-6">
+              {trainer.phoneNumber && (
+                <a href={`tel:${trainer.phoneNumber}`} className="btn-primary">
+                  <Phone size={18} /> Call
+                </a>
+              )}
+              {trainer.email && (
+                <a href={`mailto:${trainer.email}`} className="btn-outline">
+                  <Mail size={18} /> Email
+                </a>
+              )}
+              <button onClick={startTrainerChat} className="btn-dark">
+                💬 Chat with Trainer
+              </button>
+              {trainer.website && (
+                <a href={trainer.website} className="btn-outline-dark">
+                  <Globe size={18} /> Website
+                </a>
+              )}
+              <button
+                onClick={() => navigate(`/book-demo/${trainer.id}`)}
+                className="btn-dark"
+              >
+                📅 Book Demo Class
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </motion.section>
 
-      {/* 📞 CONTACT BUTTONS */}
-      <div className="flex flex-wrap gap-4 mb-10">
-        {trainer.phoneNumber && (
-          <a
-            href={`tel:${trainer.phoneNumber}`}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#ff7a00] text-white hover:scale-105 transition font-semibold"
-          >
-            <Phone size={18} /> Call
-          </a>
-        )}
+      {/* ================= MAP ================= */}
+      <motion.section
+        variants={fadeUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+        className="px-5 md:px-24 py-10"
+      >
+        <div className="bg-white rounded-2xl overflow-hidden shadow-md">
+          <iframe title="Location" src={mapSrc} className="w-full h-[350px]" />
+        </div>
+      </motion.section>
 
-        {trainer.email && (
-          <a
-            href={`mailto:${trainer.email}`}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl 
-                 border border-[#ff7a00] text-[#ff7a00] 
-                 hover:bg-[#ff7a00] hover:text-white transition font-semibold"
-          >
-            <Mail size={18} /> Email
-          </a>
-        )}
-
-        {trainer.websiteLink && trainer.websiteLink !== "na" && (
-          <a
-            href={trainer.websiteLink}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 px-5 py-3 rounded-xl 
-                 border text-gray-800 bg-white 
-                 hover:shadow-md transition font-semibold"
-          >
-            <Globe size={18} /> Website
-          </a>
-        )}
-        <button
-          onClick={() => navigate(`/book-demo/${trainer.id}`)}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl 
-               bg-gray-900 text-white 
-               hover:bg-black hover:scale-105 transition 
-               font-semibold shadow-md"
-        >
-          📅 Book Demo Class
-        </button>
-      </div>
-
-      {/* 🗺️ MAP */}
-      <div className="w-full h-[300px] rounded-2xl overflow-hidden border shadow-sm mb-12">
-        <iframe
-          title="Trainer Location"
-          src={mapSrc}
-          className="w-full h-full"
-          loading="lazy"
+      {/* ================= INFORMATION GRID ================= */}
+      <SectionBlock title="Trainer Information">
+        <Info
+          icon={Building2}
+          label="Organization"
+          value={trainer.organization}
         />
-      </div>
+        <Info icon={Briefcase} label="Founder" value={trainer.founderName} />
+        <Info
+          icon={ShieldCheck}
+          label="Facilities"
+          value={trainer.facilitiesInfrastructure}
+        />
+        <Info
+          icon={Calendar}
+          label="Year Founded"
+          value={trainer.yearFounded}
+        />
+        <Info
+          icon={BadgeCheck}
+          label="Trainer Type"
+          value={trainer.trainerType}
+        />
+        <Info
+          icon={GraduationCap}
+          label="Institute"
+          value={trainer.instituteName}
+        />
+      </SectionBlock>
 
-      {/* 📘 DETAILS */}
-      <div className="grid md:grid-cols-2 gap-10 mt-12">
-        <Section icon={Building2} title="About Trainer">
-          {trainer.about || trainer.description || "—"}
-        </Section>
+      {/* ================= PRICING ================= */}
+      <SectionBlock title="Pricing & Payments">
+        <Info
+          icon={CreditCard}
+          label="Monthly Fees"
+          value={trainer.pricing?.monthlyFees}
+        />
+        <Info
+          icon={CreditCard}
+          label="Registration Fees"
+          value={trainer.pricing?.registrationFees}
+        />
+        <Info
+          icon={CreditCard}
+          label="Uniform Cost"
+          value={trainer.pricing?.uniformCost}
+        />
+        <Info
+          icon={Landmark}
+          label="Payment Methods"
+          value={trainer.pricing?.paymentMethods}
+        />
+      </SectionBlock>
 
-        <Section icon={Award} title="Achievements">
-          {trainer.achievements?.length > 0
-            ? trainer.achievements.join(", ")
-            : "—"}
-        </Section>
-
-        <Section icon={Calendar} title="Experience">
-          {trainer.experience || "—"} years
-        </Section>
-
-        {/* ✅ FIXED CATEGORY DISPLAY */}
-
-        <Section title="Facilities">{trainer.facilities || "—"}</Section>
-      </div>
-      {/* 🧩 CATEGORIES */}
-      {trainer.categories && Object.keys(trainer.categories).length > 0 && (
-        <div className="mt-14">
-          <h2 className="text-3xl font-bold text-[#ff7a00] mb-6">
-            Categories & Sub Categories
-          </h2>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Object.entries(trainer.categories).map(([cat, subs]) => (
-              <div
+      {/* ================= CATEGORIES ================= */}
+      <motion.section className="px-5 md:px-24 py-14">
+        <h2 className="section-title">Categories & Subcategories</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {trainer.categories &&
+            Object.entries(trainer.categories).map(([cat, subs]) => (
+              <motion.div
+                whileHover={{ scale: 1.03 }}
                 key={cat}
-                className="border rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+                className="bg-white rounded-2xl p-6 shadow-sm border"
               >
                 <h3 className="font-bold text-lg mb-2">{cat}</h3>
-
-                {subs.length > 0 ? (
-                  <ul className="list-disc ml-5 text-gray-700">
-                    {subs.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-400">No sub categories</p>
-                )}
-              </div>
+                <ul className="list-disc ml-5 text-gray-700">
+                  {subs.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </motion.div>
             ))}
-          </div>
         </div>
-      )}
+      </motion.section>
 
-      {/* ✅ MEDIA SECTION */}
-      <div className="mt-14 space-y-10">
-        {/* 🖼️ IMAGE GALLERY */}
-        {trainer.images?.length > 0 && (
-          <div>
-            <h2 className="text-3xl font-bold text-[#ff7a00] mb-5">
-              Trainer Photos
-            </h2>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-              {trainer.images.map((img, i) => (
-                <div
-                  key={i}
-                  className="rounded-2xl overflow-hidden border shadow-sm hover:shadow-md transition"
-                >
-                  <img
-                    src={img}
-                    alt="Trainer"
-                    className="w-full h-44 object-cover hover:scale-105 transition"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 🎥 VIDEOS */}
-        {trainer.videos?.length > 0 && (
-          <div>
-            <h2 className="text-3xl font-bold text-[#ff7a00] mb-5">
-              Training Videos
-            </h2>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              {trainer.videos.map((vid, i) => (
-                <video
-                  key={i}
-                  controls
-                  className="w-full rounded-2xl border shadow-sm"
-                >
-                  <source src={vid} type="video/mp4" />
-                </video>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 🎬 REELS */}
-        {trainer.reels?.length > 0 && (
-          <div>
-            <h2 className="text-3xl font-bold text-[#ff7a00] mb-5">
-              Trainer Reels
-            </h2>
-
-            <div className="flex gap-6 overflow-x-auto pb-4">
-              {trainer.reels.map((reel, i) => (
-                <video
-                  key={i}
-                  controls
-                  className="min-w-[250px] h-[400px] rounded-2xl border shadow-md"
-                >
-                  <source src={reel} type="video/mp4" />
-                </video>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </motion.div>
+      {/* ================= MEDIA ================= */}
+      <MediaBlock title="Photos" items={trainer.images} type="image" />
+      <MediaBlock title="Awards" items={trainer.awardsImages} type="image" />
+      <MediaBlock
+        title="Media Mentions"
+        items={trainer.mediaMentions}
+        type="image"
+      />
+      <MediaBlock title="Videos" items={trainer.videos} type="video" />
+      <MediaBlock title="Reels" items={trainer.reels} type="reel" />
+    </div>
   );
 }
 
-/* 🔹 Reusable Section Component */
-const Section = ({ title, icon: Icon, children }) => (
-  <div className="bg-gray-50 p-6 rounded-2xl shadow-sm">
-    <h2 className="flex items-center gap-2 text-xl font-bold text-[#ff7a00] mb-2">
-      {Icon && <Icon size={20} />} {title}
-    </h2>
-    <p className="text-gray-700 leading-relaxed">{children}</p>
+/* ================= COMPONENTS ================= */
+
+const SectionBlock = ({ title, children }) => (
+  <motion.section
+    variants={fadeUp}
+    initial="hidden"
+    whileInView="visible"
+    viewport={{ once: true }}
+    transition={{ duration: 0.6 }}
+    className="px-5 md:px-24 py-14"
+  >
+    <h2 className="section-title">{title}</h2>
+    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">{children}</div>
+  </motion.section>
+);
+
+const Info = ({ icon: Icon, label, value }) => (
+  <motion.div
+    whileHover={{ scale: 1.02 }}
+    className="bg-white p-5 rounded-2xl shadow-sm border"
+  >
+    <div className="flex items-center gap-2 mb-1">
+      <Icon size={18} className="text-[#ff7a00]" />
+      <p className="text-sm text-gray-500">{label}</p>
+    </div>
+    <p className="font-semibold text-gray-800">{value || "—"}</p>
+  </motion.div>
+);
+
+const Stat = ({ icon: Icon, label, value }) => (
+  <div className="bg-gray-50 p-3 rounded-xl flex gap-3 items-center shadow-sm">
+    <Icon size={18} className="text-[#ff7a00]" />
+    <div>
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className="font-bold">{value}</p>
+    </div>
   </div>
 );
+
+const MediaBlock = ({ title, items, type }) => {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <motion.section
+      variants={fadeUp}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true }}
+      transition={{ duration: 0.6 }}
+      className="px-5 md:px-24 py-14"
+    >
+      <h2 className="section-title">{title}</h2>
+
+      {type === "image" && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+          {items.map((img, i) => (
+            <motion.img
+              whileHover={{ scale: 1.05 }}
+              key={i}
+              src={img}
+              className="w-full h-44 object-cover rounded-2xl shadow-md border"
+            />
+          ))}
+        </div>
+      )}
+
+      {type === "video" && (
+        <div className="grid md:grid-cols-2 gap-6">
+          {items.map((vid, i) => (
+            <video
+              key={i}
+              controls
+              className="w-full rounded-2xl shadow-md border"
+            >
+              <source src={vid} type="video/mp4" />
+            </video>
+          ))}
+        </div>
+      )}
+
+      {type === "reel" && (
+        <div className="flex gap-6 overflow-x-auto">
+          {items.map((vid, i) => (
+            <video
+              key={i}
+              controls
+              className="min-w-[260px] h-[420px] rounded-2xl shadow-md border"
+            >
+              <source src={vid} type="video/mp4" />
+            </video>
+          ))}
+        </div>
+      )}
+    </motion.section>
+  );
+};
+
+/* ================= UI CLASSES ================= */
+/*
+btn-primary = "flex items-center gap-2 px-5 py-3 rounded-xl bg-[#ff7a00] text-white hover:scale-105 transition font-semibold"
+btn-outline = "flex items-center gap-2 px-5 py-3 rounded-xl border border-[#ff7a00] text-[#ff7a00] hover:bg-[#ff7a00] hover:text-white transition font-semibold"
+btn-outline-dark = "flex items-center gap-2 px-5 py-3 rounded-xl border text-gray-800 bg-white hover:shadow-md transition font-semibold"
+btn-dark = "flex items-center gap-2 px-5 py-3 rounded-xl bg-gray-900 text-white hover:bg-black hover:scale-105 transition font-semibold shadow-md"
+section-title = "text-3xl font-bold text-[#ff7a00] mb-8"
+*/

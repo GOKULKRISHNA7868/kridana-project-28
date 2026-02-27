@@ -84,7 +84,7 @@ export default function AddTrainerDetailsPage() {
       "Lethwei",
       "Bajiquan",
       "Hung Gar",
-      "Praying Mantis Kung Fu"
+      "Praying Mantis Kung Fu",
     ],
     "Team Ball Sports": [
       "Football / Soccer",
@@ -105,7 +105,7 @@ export default function AddTrainerDetailsPage() {
       "Softball",
       "Wheelchair Rugby",
       "Dodgeball",
-      "Korfball"
+      "Korfball",
     ],
     "Racket Sports": [
       "Tennis",
@@ -125,7 +125,7 @@ export default function AddTrainerDetailsPage() {
       "Chaza",
       "Totem Tennis (Swingball)",
       "Matkot",
-      "Jombola"
+      "Jombola",
     ],
     Fitness: [
       "Gym Workout",
@@ -173,7 +173,7 @@ export default function AddTrainerDetailsPage() {
       "Toad in the Hole",
       "Bat and Trap",
       "Boccia",
-      "Gateball"
+      "Gateball",
     ],
     "Equestrian Sports": [
       "Horse Racing",
@@ -251,7 +251,7 @@ export default function AddTrainerDetailsPage() {
       "Nutrition",
       "Traditional & Alternative Therapies",
       "Rehabilitation",
-      "Lifestyle Coaching"
+      "Lifestyle Coaching",
     ],
     Dance: [
       "Bharatanatyam",
@@ -363,6 +363,7 @@ export default function AddTrainerDetailsPage() {
     timings: "",
     phone: "",
     email: "",
+    monthlyFee: "",
     monthlyDate: "",
     address: "",
     aadharFiles: [],
@@ -392,107 +393,95 @@ export default function AddTrainerDetailsPage() {
   };
 
   /* -------------------- VALIDATION -------------------- */
-const validateStep = () => {
-  let newErrors = {};
-  const today = new Date();
+  const validateStep = () => {
+    let newErrors = {};
+    const today = new Date();
 
-  /* ================= STEP 1 VALIDATION ================= */
-  if (step === 1) {
+    /* ================= STEP 1 VALIDATION ================= */
+    if (step === 1) {
+      if (!formData.firstName.trim())
+        newErrors.firstName = "First name is required";
 
-    if (!formData.firstName.trim())
-      newErrors.firstName = "First name is required";
+      if (!formData.lastName.trim())
+        newErrors.lastName = "Last name is required";
 
-    if (!formData.lastName.trim())
-      newErrors.lastName = "Last name is required";
+      if (!formData.dateOfBirth)
+        newErrors.dateOfBirth = "Date of Birth is required";
 
-    if (!formData.dateOfBirth)
-      newErrors.dateOfBirth = "Date of Birth is required";
+      if (!formData.age) newErrors.age = "Age is required";
 
-    if (!formData.age)
-      newErrors.age = "Age is required";
+      if (!formData.joiningDate)
+        newErrors.joiningDate = "Joining date is required";
 
-    if (!formData.joiningDate)
-      newErrors.joiningDate = "Joining date is required";
+      if (!formData.belt) newErrors.belt = "Belt is required";
 
-    if (!formData.belt)
-      newErrors.belt = "Belt is required";
+      if (!formData.category) newErrors.category = "Category is required";
 
-    if (!formData.category)
-      newErrors.category = "Category is required";
+      if (!formData.subCategory)
+        newErrors.subCategory = "Sub Category is required";
 
-    if (!formData.subCategory)
-      newErrors.subCategory = "Sub Category is required";
+      if (!formData.sessions) newErrors.sessions = "Session is required";
 
-    if (!formData.sessions)
-      newErrors.sessions = "Session is required";
+      if (!formData.timings) newErrors.timings = "Timings are required";
 
-    if (!formData.timings)
-      newErrors.timings = "Timings are required";
+      if (!formData.phone) newErrors.phone = "Phone number is required";
 
-    if (!formData.phone)
-      newErrors.phone = "Phone number is required";
+      if (!formData.email) newErrors.email = "Email is required";
 
-    if (!formData.email)
-      newErrors.email = "Email is required";
+      /* FORMAT CHECKS */
 
-    /* FORMAT CHECKS */
+      if (formData.firstName && !/^[A-Za-z]+$/.test(formData.firstName))
+        newErrors.firstName = "Only alphabets allowed";
 
-    if (formData.firstName && !/^[A-Za-z]+$/.test(formData.firstName))
-      newErrors.firstName = "Only alphabets allowed";
+      if (formData.lastName && !/^[A-Za-z]+$/.test(formData.lastName))
+        newErrors.lastName = "Only alphabets allowed";
 
-    if (formData.lastName && !/^[A-Za-z]+$/.test(formData.lastName))
-      newErrors.lastName = "Only alphabets allowed";
+      if (formData.phone && !/^[0-9]{10}$/.test(formData.phone))
+        newErrors.phone = "Phone must be 10 digits";
 
-    if (formData.phone && !/^[0-9]{10}$/.test(formData.phone))
-      newErrors.phone = "Phone must be 10 digits";
+      if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+        newErrors.email = "Invalid email format";
 
-    if (
-      formData.email &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
-    )
-      newErrors.email = "Invalid email format";
+      if (formData.dateOfBirth) {
+        const dob = new Date(formData.dateOfBirth);
+        if (dob > today)
+          newErrors.dateOfBirth = "Date of birth cannot be future";
+      }
 
-    if (formData.dateOfBirth) {
-      const dob = new Date(formData.dateOfBirth);
-      if (dob > today)
-        newErrors.dateOfBirth = "Date of birth cannot be future";
+      if (formData.joiningDate) {
+        const joining = new Date(formData.joiningDate);
+        if (joining > today)
+          newErrors.joiningDate = "Joining date cannot be future";
+      }
     }
 
-    if (formData.joiningDate) {
-      const joining = new Date(formData.joiningDate);
-      if (joining > today)
-        newErrors.joiningDate = "Joining date cannot be future";
+    /* ================= STEP 2 VALIDATION ================= */
+    if (step === 2) {
+      if (!formData.monthlyFee)
+        newErrors.monthlyFee = "Monthly Fee is required";
+      if (!formData.monthlyDate)
+        newErrors.monthlyDate = "Monthly payment date is required";
+
+      if (!formData.address.trim()) newErrors.address = "Address is required";
+
+      if (formData.monthlyDate) {
+        const todayStr = new Date().toISOString().split("T")[0];
+
+        if (formData.monthlyDate < todayStr) {
+          newErrors.monthlyDate = "Monthly payment date cannot be past";
+        }
+      }
     }
-  }
 
-  /* ================= STEP 2 VALIDATION ================= */
-  if (step === 2) {
-
-    if (!formData.monthlyDate)
-      newErrors.monthlyDate = "Monthly payment date is required";
-
-    if (!formData.address.trim())
-      newErrors.address = "Address is required";
-
-if (formData.monthlyDate) {
-  const todayStr = new Date().toISOString().split("T")[0];
-
-  if (formData.monthlyDate < todayStr) {
-    newErrors.monthlyDate =
-      "Monthly payment date cannot be past";
-  }
-}
-  }
-
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
   /* -------------------- NAV -------------------- */
-const handleNext = () => {
-  if (validateStep()) {
-    setStep(step + 1);
-  }
-};
+  const handleNext = () => {
+    if (validateStep()) {
+      setStep(step + 1);
+    }
+  };
 
   const handleBack = () => {
     if (step === 1) navigate(-1);
@@ -640,16 +629,13 @@ const handleNext = () => {
     ============================== */
 
       await setDoc(doc(db, "trainerstudents", studentUid), {
-        ...rest,
+        ...rest, // <-- monthlyFee will automatically be included
         aadharFilesCount: aadharFiles.length,
-
         profileImageUrl: profileImageUrl,
         aadharUrls: aadharUrls,
-
-        studentUid: studentUid, // ✅ FIXED
+        studentUid: studentUid,
         trainerId: user.uid,
         role: "student",
-
         createdAt: serverTimestamp(),
       });
 
@@ -667,7 +653,6 @@ const handleNext = () => {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-
       if (timeRef.current && !timeRef.current.contains(e.target)) {
         setShowTimeDropdown(false);
       }
@@ -676,16 +661,17 @@ const handleNext = () => {
         setShowCategoryDropdown(false);
       }
 
-      if (subCategoryRef.current && !subCategoryRef.current.contains(e.target)) {
+      if (
+        subCategoryRef.current &&
+        !subCategoryRef.current.contains(e.target)
+      ) {
         setShowSubCategoryDropdown(false);
       }
-
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
 
   /* -------------------- UI -------------------- */
   return (
@@ -737,8 +723,9 @@ const handleNext = () => {
               {[1, 2].map((s) => (
                 <div
                   key={s}
-                  className={`h-3 flex-1 rounded-full ${step >= s ? "bg-orange-500" : "bg-gray-300"
-                    }`}
+                  className={`h-3 flex-1 rounded-full ${
+                    step >= s ? "bg-orange-500" : "bg-gray-300"
+                  }`}
                 />
               ))}
             </div>
@@ -757,16 +744,16 @@ const handleNext = () => {
               <input
                 className={inputClass}
                 value={formData.firstName}
-               onChange={(e) => {
-  const value = e.target.value.replace(/[^A-Za-z]/g, "");
-  setFormData(prev => ({ ...prev, firstName: value }));
-}}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^A-Za-z]/g, "");
+                  setFormData((prev) => ({ ...prev, firstName: value }));
+                }}
               />
               {errors.firstName && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.firstName}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.firstName}
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col">
@@ -777,15 +764,15 @@ const handleNext = () => {
                 className={inputClass}
                 value={formData.lastName}
                 onChange={(e) => {
-  const value = e.target.value.replace(/[^A-Za-z]/g, "");
-  setFormData(prev => ({ ...prev, lastName: value }));
-}}
+                  const value = e.target.value.replace(/[^A-Za-z]/g, "");
+                  setFormData((prev) => ({ ...prev, lastName: value }));
+                }}
               />
               {errors.lastName && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.lastName}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.lastName}
+                </span>
+              )}
             </div>
 
             {/* Row 2 */}
@@ -793,24 +780,24 @@ const handleNext = () => {
               <label className="text-sm font-semibold mb-2">
                 Date Of Birth*
               </label>
-<input
-  type="date"
-  className={inputClass}
-  min="1900-01-01"
-  max={new Date().toISOString().split("T")[0]}
-  value={formData.dateOfBirth}
-  onChange={(e) =>
-    setFormData((prev) => ({
-      ...prev,
-      dateOfBirth: e.target.value,
-    }))
-  }
-/>
+              <input
+                type="date"
+                className={inputClass}
+                min="1900-01-01"
+                max={new Date().toISOString().split("T")[0]}
+                value={formData.dateOfBirth}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    dateOfBirth: e.target.value,
+                  }))
+                }
+              />
               {errors.dateOfBirth && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.dateOfBirth}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.dateOfBirth}
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col">
@@ -830,10 +817,8 @@ const handleNext = () => {
                 <option>61 – 100 years Senior Citizens</option>
               </select>
               {errors.age && (
-  <span className="text-red-500 text-xs">
-    {errors.age}
-  </span>
-)}
+                <span className="text-red-500 text-xs">{errors.age}</span>
+              )}
             </div>
 
             {/* Row 3 */}
@@ -841,23 +826,23 @@ const handleNext = () => {
               <label className="text-sm font-semibold mb-2">
                 Joining Date*
               </label>
-<input
-  type="date"
-  className={inputClass}
-  max={new Date().toISOString().split("T")[0]}
-  value={formData.joiningDate}
-  onChange={(e) =>
-    setFormData((prev) => ({
-      ...prev,
-      joiningDate: e.target.value,
-    }))
-  }
-/>
+              <input
+                type="date"
+                className={inputClass}
+                max={new Date().toISOString().split("T")[0]}
+                value={formData.joiningDate}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    joiningDate: e.target.value,
+                  }))
+                }
+              />
               {errors.joiningDate && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.joiningDate}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.joiningDate}
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col">
@@ -875,10 +860,8 @@ const handleNext = () => {
                 ))}
               </select>
               {errors.belt && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.belt}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">{errors.belt}</span>
+              )}
             </div>
 
             {/* Row 4 */}
@@ -898,26 +881,26 @@ const handleNext = () => {
 
                   <ChevronDown
                     size={16}
-                    className={`transition-transform ${showCategoryDropdown ? "rotate-180" : ""
-                      }`}
+                    className={`transition-transform ${
+                      showCategoryDropdown ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
 
                 {showCategoryDropdown && (
                   <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-md max-h-40 overflow-y-auto">
-
                     {categories.map((cat) => (
                       <div
                         key={cat}
                         onClick={() => {
-                          setFormData(prev => ({
+                          setFormData((prev) => ({
                             ...prev,
                             category: cat,
-                            subCategory: ""
+                            subCategory: "",
                           }));
 
                           setAvailableSubCategories(
-                            subCategoryMap[cat] ? [...subCategoryMap[cat]] : []
+                            subCategoryMap[cat] ? [...subCategoryMap[cat]] : [],
                           );
 
                           setShowSubCategoryDropdown(false);
@@ -928,15 +911,14 @@ const handleNext = () => {
                         {cat}
                       </div>
                     ))}
-
                   </div>
                 )}
               </div>
               {errors.category && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.category}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.category}
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col">
@@ -951,8 +933,9 @@ const handleNext = () => {
                     formData.category &&
                     setShowSubCategoryDropdown(!showSubCategoryDropdown)
                   }
-                  className={`${inputClass} w-full flex items-center justify-between ${!formData.category && "bg-gray-100 cursor-not-allowed"
-                    }`}
+                  className={`${inputClass} w-full flex items-center justify-between ${
+                    !formData.category && "bg-gray-100 cursor-not-allowed"
+                  }`}
                 >
                   <span>
                     {formData.subCategory
@@ -964,21 +947,21 @@ const handleNext = () => {
 
                   <ChevronDown
                     size={16}
-                    className={`transition-transform ${showSubCategoryDropdown ? "rotate-180" : ""
-                      }`}
+                    className={`transition-transform ${
+                      showSubCategoryDropdown ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
 
                 {showSubCategoryDropdown && (
                   <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-md max-h-40 overflow-y-auto">
-
                     {availableSubCategories.map((sub) => (
                       <div
                         key={sub}
                         onClick={() => {
-                          setFormData(prev => ({
+                          setFormData((prev) => ({
                             ...prev,
-                            subCategory: sub
+                            subCategory: sub,
                           }));
                           setShowSubCategoryDropdown(false);
                         }}
@@ -987,15 +970,14 @@ const handleNext = () => {
                         {sub}
                       </div>
                     ))}
-
                   </div>
                 )}
               </div>
               {errors.subCategory && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.subCategory}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.subCategory}
+                </span>
+              )}
             </div>
 
             {/* Row 5 */}
@@ -1016,10 +998,10 @@ const handleNext = () => {
                 <option>Evening</option>
               </select>
               {errors.sessions && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.sessions}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.sessions}
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col">
@@ -1035,14 +1017,15 @@ const handleNext = () => {
                   <span>
                     {formData.timings
                       ? timeSlots.find((t) => t.value === formData.timings)
-                        ?.label
+                          ?.label
                       : "Select Time"}
                   </span>
 
                   <ChevronDown
                     size={16}
-                    className={`transition-transform ${showTimeDropdown ? "rotate-180" : ""
-                      }`}
+                    className={`transition-transform ${
+                      showTimeDropdown ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
 
@@ -1067,10 +1050,10 @@ const handleNext = () => {
                 )}
               </div>
               {errors.timings && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.timings}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.timings}
+                </span>
+              )}
             </div>
 
             {/* Row 6 */}
@@ -1085,17 +1068,17 @@ const handleNext = () => {
                 className={inputClass}
                 value={formData.phone}
                 onChange={(e) => {
-  const value = e.target.value.replace(/\D/g, "");
-  if (value.length <= 10) {
-    setFormData(prev => ({ ...prev, phone: value }));
-  }
-}}
+                  const value = e.target.value.replace(/\D/g, "");
+                  if (value.length <= 10) {
+                    setFormData((prev) => ({ ...prev, phone: value }));
+                  }
+                }}
               />
               {errors.phone && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.phone}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.phone}
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col">
@@ -1109,50 +1092,72 @@ const handleNext = () => {
                 }
               />
               {errors.email && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.email}
-  </span>
-)}
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.email}
+                </span>
+              )}
             </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="mt-6">
+            <div className="flex flex-col">
+              <label className="text-sm font-semibold mb-2">
+                Monthly Fee (₹)*
+              </label>
+              <input
+                type="number"
+                min="0"
+                className={inputClass}
+                value={formData.monthlyFee}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    monthlyFee: e.target.value,
+                  }))
+                }
+              />
+              {errors.monthlyFee && (
+                <span className="text-red-500 text-xs mt-1">
+                  {errors.monthlyFee}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-x-10 gap-y-6">
               <div className="flex flex-col">
                 <label className="text-sm font-semibold mb-2">
                   Monthly Payment Date*
                 </label>
-<input
-  type="date"
-  className={inputClass}
-  min={new Date().toISOString().split("T")[0]}
-  max="9999-12-31"
-  value={formData.monthlyDate}
-  onChange={(e) => {
-    const value = e.target.value;
+                <input
+                  type="date"
+                  className={inputClass}
+                  min={new Date().toISOString().split("T")[0]}
+                  max="9999-12-31"
+                  value={formData.monthlyDate}
+                  onChange={(e) => {
+                    const value = e.target.value;
 
-    // Extra safety: ensure valid 4-digit year format
-    const year = value.split("-")[0];
+                    // Extra safety: ensure valid 4-digit year format
+                    const year = value.split("-")[0];
 
-    if (year.length <= 4) {
-      setFormData((prev) => ({
-        ...prev,
-        monthlyDate: value,
-      }));
-    }
-  }}
-/>
-{errors.monthlyDate && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.monthlyDate}
-  </span>
-)}
+                    if (year.length <= 4) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        monthlyDate: value,
+                      }));
+                    }
+                  }}
+                />
+                {errors.monthlyDate && (
+                  <span className="text-red-500 text-xs mt-1">
+                    {errors.monthlyDate}
+                  </span>
+                )}
               </div>
               <div className="flex flex-col">
                 <label className="text-sm font-semibold mb-2">
-                 Aadhaar Front & Back Photos (Optional)
+                  Aadhaar Front & Back Photos (Optional)
                 </label>
 
                 <div className="relative w-full">
@@ -1197,21 +1202,21 @@ const handleNext = () => {
                   Enter Address*
                 </label>
                 <textarea
-  rows={4}
-  className={`${inputClass} h-auto`}
-  value={formData.address}
-  onChange={(e) =>
-    setFormData((prev) => ({
-      ...prev,
-      address: e.target.value,
-    }))
-  }
-/>
-{errors.address && (
-  <span className="text-red-500 text-xs mt-1">
-    {errors.address}
-  </span>
-)}
+                  rows={4}
+                  className={`${inputClass} h-auto`}
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      address: e.target.value,
+                    }))
+                  }
+                />
+                {errors.address && (
+                  <span className="text-red-500 text-xs mt-1">
+                    {errors.address}
+                  </span>
+                )}
               </div>
             </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { MoreVertical, Smile, Send, Mic } from "lucide-react";
-import { db, auth } from "../../firebase";
+import { db, auth } from "../firebase";
 import {
   collection,
   doc,
@@ -18,6 +18,7 @@ import {
   arrayRemove,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { useParams, useLocation } from "react-router-dom";
 
 const ChatBox = () => {
   const [activeTab, setActiveTab] = useState("chats");
@@ -25,7 +26,7 @@ const ChatBox = () => {
   const [showMenu, setShowMenu] = useState(false);
 
   const [user, setUser] = useState(null);
-  const [trainerId, setTrainerId] = useState(null);
+  const [instituteId, setInstituteId] = useState(null);
 
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -39,7 +40,9 @@ const ChatBox = () => {
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [renameValue, setRenameValue] = useState("");
-  const [chatUsers, setChatUsers] = useState([]);
+  const { chatId } = useParams();
+  const location = useLocation();
+  const initialChatName = location.state?.chatName || "Chat";
   const getValidImage = (url, name) => {
     if (!url)
       return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
@@ -47,144 +50,113 @@ const ChatBox = () => {
       return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
     return url;
   };
-  /* ================= CHAT MEMBERS (OUTER USERS ONLY — MESSAGE FILTERED) ================= */
-  useEffect(() => {
-    if (!user) return;
 
-    const q = query(
-      collection(db, "chats"),
-      where("members", "array-contains", user.uid),
-    );
-
-    const unsub = onSnapshot(q, async (snap) => {
-      let validOuterUids = new Set();
-
-      for (let d of snap.docs) {
-        const chatId = d.id;
-        const chatData = d.data();
-        const members = chatData.members || [];
-
-        // get messages
-        const msgsSnap = await getDocs(
-          query(
-            collection(db, "chats", chatId, "messages"),
-            orderBy("createdAt", "asc"),
-          ),
-        );
-
-        if (msgsSnap.empty) continue; // ❌ no messages → ignore
-
-        // check if any message is from non-institute/non-self user
-        msgsSnap.docs.forEach((m) => {
-          const msg = m.data();
-          const sender = msg.senderId;
-
-          if (sender !== user.uid) {
-            validOuterUids.add(sender); // ✅ only real senders
-          }
-        });
-      }
-
-      const externalUsers = [];
-
-      for (let uid of validOuterUids) {
-        // skip institute, students, trainers
-        if (users.find((u) => u.uid === uid)) continue;
-
-        const uRef = doc(db, "users", uid);
-        const uSnap = await getDoc(uRef);
-
-        if (uSnap.exists()) {
-          const data = uSnap.data();
-          externalUsers.push({
-            uid,
-            id: uid,
-            name: data.name || data.emailOrPhone || "User",
-            role: "outer",
-            profileImageUrl: data.profileImage || "",
-          });
-        }
-      }
-
-      setChatUsers(externalUsers);
-    });
-
-    return () => unsub();
-  }, [user, users]);
   /* ================= AUTH + INSTITUTE ================= */
-  /* ================= AUTH + TRAINER ================= */
+  /* ================= AUTH + INSTITUTE (FIXED) ================= */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) return;
       setUser(u);
 
-      // Trainer document itself
-      const trainerRef = doc(db, "trainers", u.uid);
-      const trainerSnap = await getDoc(trainerRef);
+      /* -------- 1. Check Institute Owner -------- */
+      const instRef = doc(db, "institutes", u.uid);
+      const instSnap = await getDoc(instRef);
+      if (instSnap.exists()) {
+        setInstituteId(u.uid);
+        return;
+      }
 
-      if (trainerSnap.exists()) {
-        setTrainerId(u.uid); // trainer = institute
+      /* -------- 2. Check Student -------- */
+      const studentRef = doc(db, "students", u.uid);
+      const studentSnap = await getDoc(studentRef);
+      if (studentSnap.exists()) {
+        const data = studentSnap.data();
+        setInstituteId(data.instituteId); // ✅ IMPORTANT
+        return;
+      }
+
+      /* -------- 3. Check Trainer -------- */
+      const trainerQ = query(
+        collection(db, "InstituteTrainers"),
+        where("trainerUid", "==", u.uid),
+      );
+      const trainerSnap = await getDocs(trainerQ);
+
+      if (!trainerSnap.empty) {
+        const data = trainerSnap.docs[0].data();
+        setInstituteId(data.instituteId); // ✅ IMPORTANT
+        return;
       }
     });
 
     return () => unsub();
   }, []);
-
-  /* ================= USERS ================= */
-  /* ================= USERS (TRAINER + TRAINER STUDENTS) ================= */
   useEffect(() => {
-    if (!trainerId || !user) return;
+    if (!chatId) return; // 🔥 prevents crash
 
-    const loadUsers = async () => {
-      const trainerRef = doc(db, "trainers", trainerId);
-      const trainerSnap = await getDoc(trainerRef);
-      if (!trainerSnap.exists()) return;
+    setActiveChat({ id: chatId, type: "individual" });
+    setActiveChatName(initialChatName);
+    setScreen("chat");
+  }, [chatId]);
+  /* ================= USERS ================= */
+  useEffect(() => {
+    if (!instituteId) return;
 
-      const trainerData = trainerSnap.data();
-
-      // Trainer as user
-      const trainerUser = {
-        id: trainerId,
-        uid: trainerId,
-        name: `${trainerData.firstName || ""} ${trainerData.lastName || ""}`.trim(),
-        role: "trainer",
-        profileImageUrl: trainerData.profileImageUrl || "",
-      };
-
-      // Students list from trainer document
-      const studentUids = trainerData.students || [];
-
-      const students = [];
-
-      for (let uid of studentUids) {
-        const sRef = doc(db, "trainerstudents", uid);
-        const sSnap = await getDoc(sRef);
-        if (sSnap.exists()) {
-          const data = sSnap.data();
-          students.push({
-            id: uid,
-            uid: data.studentUid,
+    const unsubStudents = onSnapshot(
+      query(
+        collection(db, "students"),
+        where("instituteId", "==", instituteId),
+      ),
+      (snap) => {
+        const s = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            uid: d.id,
             name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
             role: "student",
-            profileImageUrl: data.profileImageUrl || "",
-          });
-        }
-      }
+            profileImageUrl: data.studentPhotoUrl || data.profileImageUrl || "", // ✅ FETCH CLOUDINARY URL
+          };
+        });
+        setUsers((prev) => [...prev.filter((u) => u.role !== "student"), ...s]);
+      },
+    );
 
-      setUsers([trainerUser, ...students]);
+    const unsubTrainers = onSnapshot(
+      query(
+        collection(db, "InstituteTrainers"),
+        where("instituteId", "==", instituteId),
+      ),
+      (snap) => {
+        const t = snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            uid: data.trainerUid,
+            name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
+            role: "trainer",
+            profileImageUrl: data.profileImageUrl || "", // ✅ FETCH CLOUDINARY URL
+          };
+        });
+        setUsers((prev) => [...prev.filter((u) => u.role !== "trainer"), ...t]);
+      },
+    );
+
+    return () => {
+      unsubStudents();
+      unsubTrainers();
     };
-
-    loadUsers();
-  }, [trainerId, user]);
+  }, [instituteId]);
 
   /* ================= GROUPS ================= */
+  /* ================= GROUPS ================= */
   useEffect(() => {
-    if (!user || !trainerId) return;
+    if (!user || !instituteId) return;
 
     const q = query(
       collection(db, "groups"),
       where("members", "array-contains", user.uid),
-      where("trainerId", "==", trainerId),
+      where("instituteId", "==", instituteId),
     );
 
     const unsub = onSnapshot(q, (snap) => {
@@ -192,7 +164,7 @@ const ChatBox = () => {
     });
 
     return () => unsub();
-  }, [user, trainerId]);
+  }, [user, instituteId]);
 
   /* ================= MESSAGES ================= */
   useEffect(() => {
@@ -202,7 +174,6 @@ const ChatBox = () => {
       collection(db, "chats", activeChat.id, "messages"),
       orderBy("createdAt", "asc"),
     );
-
     const unsub = onSnapshot(q, (snap) => {
       setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
@@ -217,7 +188,7 @@ const ChatBox = () => {
 
   /* ================= START CHAT ================= */
   const startChat = async (target) => {
-    if (!user || !trainerId) return;
+    if (!user || !instituteId) return;
 
     const chatId = [user.uid, target.uid].sort().join("_");
     const chatRef = doc(db, "chats", chatId);
@@ -226,7 +197,7 @@ const ChatBox = () => {
     if (!snap.exists()) {
       await setDoc(chatRef, {
         type: "individual",
-        trainerId,
+        instituteId,
         members: [user.uid, target.uid],
         createdAt: serverTimestamp(),
         lastMessage: "",
@@ -323,7 +294,7 @@ const ChatBox = () => {
 
   /* ================= UNREAD COUNT ================= */
   useEffect(() => {
-    if (!user || !trainerId) return;
+    if (!user || !instituteId) return;
 
     const q = query(
       collection(db, "chats"),
@@ -350,24 +321,26 @@ const ChatBox = () => {
     });
 
     return () => unsub();
-  }, [user, trainerId]);
+  }, [user, instituteId]);
 
   /* ================= CREATE GROUP ================= */
   const submitCreateGroup = async () => {
     if (!groupName.trim() || selectedMembers.length === 0) return;
-
-    const members = [...new Set([user.uid, ...selectedMembers])];
+    const members = [...new Set([user.uid, ...selectedMembers])].filter(
+      (m) => m,
+    ); // 🔥 REMOVE UNDEFINED USERS
 
     const ref = await addDoc(collection(db, "groups"), {
       name: groupName,
-      trainerId,
+      instituteId,
       members,
       adminId: user.uid,
       createdAt: serverTimestamp(),
     });
+
     await setDoc(doc(db, "chats", ref.id), {
       type: "group",
-      trainerId,
+      instituteId,
       members,
       createdAt: serverTimestamp(),
       name: groupName,
@@ -398,7 +371,10 @@ const ChatBox = () => {
   const memberObjects = (
     groups.find((g) => g.id === activeChat?.id)?.members || []
   )
-    .map((uid) => users.find((u) => u.uid === uid))
+    .map(
+      (uid) =>
+        users.find((u) => u.uid === uid) || { uid, name: "Unknown User" },
+    )
     .filter(Boolean);
   return (
     <div className="flex h-screen w-full bg-[#f3f3f3] overflow-hidden">
@@ -441,13 +417,7 @@ const ChatBox = () => {
 
         {/* TOP MENU */}
         <div className="flex items-center justify-between bg-[#efb082] mx-4 rounded-md px-4 py-3">
-          <span className="font-medium">
-            {activeChatName || "Chat"}
-            {activeChat?.type === "individual" &&
-              activeChatName === user?.displayName && (
-                <span className="ml-1 text-sm text-gray-600">(You)</span>
-              )}
-          </span>
+          <span className="font-medium">{activeChatName || "Chat"}</span>
 
           <div className="relative">
             <MoreVertical
@@ -640,8 +610,7 @@ const ChatBox = () => {
                     <div className="bg-gray-300 px-4 py-2 rounded-xl text-sm flex flex-col gap-1 max-w-[75%]">
                       {activeChat?.type === "group" && (
                         <span className="text-[10px] font-semibold text-gray-700">
-                          {sender?.name || "User"}{" "}
-                          {sender?.uid === user?.uid && "(You)"}
+                          {sender?.name || "User"}
                         </span>
                       )}
 
@@ -702,7 +671,7 @@ const ChatBox = () => {
                   )}
                 </div>
               ))
-            : [...users, ...chatUsers].map((u) => (
+            : users.map((u) => (
                 <div
                   key={u.uid}
                   onClick={() => startChat(u)}
@@ -713,20 +682,7 @@ const ChatBox = () => {
                       src={getValidImage(u.profileImageUrl, u.name)}
                       className="w-9 h-9 rounded-full object-cover"
                     />
-
-                    <div className="flex items-center gap-2 font-medium">
-                      <span>{u.name}</span>
-
-                      {u.uid === user?.uid && (
-                        <span className="text-xs text-gray-500">(You)</span>
-                      )}
-
-                      {u.role === "outer" && (
-                        <span className="text-[10px] px-2 py-[2px] rounded-full bg-gray-200 text-gray-700">
-                          Outer
-                        </span>
-                      )}
-                    </div>
+                    <span>{u.name}</span>
                   </div>
 
                   {unreadCounts[[user?.uid, u.uid].sort().join("_")] > 0 && (

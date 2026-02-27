@@ -13,8 +13,8 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) ** 2;
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
@@ -89,7 +89,7 @@ export default function ViewTrainers() {
       "Lethwei",
       "Bajiquan",
       "Hung Gar",
-      "Praying Mantis Kung Fu"
+      "Praying Mantis Kung Fu",
     ],
     "Team Ball Sports": [
       "Football / Soccer",
@@ -110,7 +110,7 @@ export default function ViewTrainers() {
       "Softball",
       "Wheelchair Rugby",
       "Dodgeball",
-      "Korfball"
+      "Korfball",
     ],
     "Racket Sports": [
       "Tennis",
@@ -130,7 +130,7 @@ export default function ViewTrainers() {
       "Chaza",
       "Totem Tennis (Swingball)",
       "Matkot",
-      "Jombola"
+      "Jombola",
     ],
     Fitness: [
       "Gym Workout",
@@ -178,7 +178,7 @@ export default function ViewTrainers() {
       "Toad in the Hole",
       "Bat and Trap",
       "Boccia",
-      "Gateball"
+      "Gateball",
     ],
     "Equestrian Sports": [
       "Horse Racing",
@@ -256,7 +256,7 @@ export default function ViewTrainers() {
       "Nutrition",
       "Traditional & Alternative Therapies",
       "Rehabilitation",
-      "Lifestyle Coaching"
+      "Lifestyle Coaching",
     ],
     Dance: [
       "Bharatanatyam",
@@ -371,7 +371,7 @@ export default function ViewTrainers() {
         if (subCategory && !t.categories?.[category]?.includes(subCategory))
           return false;
 
-      if (city && t.city?.trim() !== city.trim()) return false;
+        if (city && t.city?.trim() !== city.trim()) return false;
         if (minRating && (t.rating || 0) < Number(minRating)) return false;
         return true;
       })
@@ -420,15 +420,12 @@ export default function ViewTrainers() {
 
         {/* CATEGORY CUSTOM DROPDOWN */}
         <div className="relative">
-
-
           <div
             onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
             className={`w-full flex items-center justify-between bg-white 
     border ${showCategoryDropdown ? "border-orange-500" : "border-gray-300"} 
     rounded-md px-3 h-[45px] cursor-pointer`}
           >
-
             <span className={category ? "text-black" : "text-gray-400"}>
               {category === "" ? "Select Category" : category}
             </span>
@@ -445,7 +442,7 @@ export default function ViewTrainers() {
                     setSubCategory("");
                     setShowCategoryDropdown(false);
                   }}
-                 className="px-4 py-2 hover:bg-blue-600 hover:text-white cursor-pointer"
+                  className="px-4 py-2 hover:bg-blue-600 hover:text-white cursor-pointer"
                 >
                   {cat}
                 </div>
@@ -458,7 +455,6 @@ export default function ViewTrainers() {
 
         {/* SUBCATEGORY CUSTOM DROPDOWN */}
         <div className="relative">
-
           <div
             onClick={() =>
               category && setShowSubCategoryDropdown(!showSubCategoryDropdown)
@@ -480,8 +476,8 @@ export default function ViewTrainers() {
                 <div
                   key={sub}
                   onClick={() => {
-                    setSubCategory(sub.trim());      // ✅ ONLY THIS
-                    setShowSubCategoryDropdown(false);   // close dropdown
+                    setSubCategory(sub.trim()); // ✅ ONLY THIS
+                    setShowSubCategoryDropdown(false); // close dropdown
                   }}
                   className="px-4 py-2 hover:bg-blue-600 hover:text-white cursor-pointer"
                 >
@@ -501,11 +497,11 @@ export default function ViewTrainers() {
           {[
             ...new Set(
               trainers
-                .map((t) => t.city?.trim())   // 🔥 REMOVE SPACE
-                .filter(Boolean)
+                .map((t) => t.city?.trim()) // 🔥 REMOVE SPACE
+                .filter(Boolean),
             ),
           ]
-            .sort((a, b) => a.localeCompare(b))   // 🔥 ALPHABETICAL ORDER
+            .sort((a, b) => a.localeCompare(b)) // 🔥 ALPHABETICAL ORDER
             .map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -530,7 +526,7 @@ export default function ViewTrainers() {
             onClick={getCurrentLocation}
             className=" text-black h-[40px] px-4 rounded-md text-sm"
           >
-           Current Location
+            Current Location
           </button>
           <input
             type="number"

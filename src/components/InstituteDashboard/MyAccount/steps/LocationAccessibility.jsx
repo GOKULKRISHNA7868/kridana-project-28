@@ -8,6 +8,12 @@ const LocationAccessibility = ({ setStep }) => {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [locLoading, setLocLoading] = useState(false); // 🔥 location loading
+
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [locationName, setLocationName] = useState("");
+  // 🔥 ADD THESE STATES (already exist in previous logic version)
 
   const [formData, setFormData] = useState({
     fullAddress: "",
@@ -29,7 +35,6 @@ const LocationAccessibility = ({ setStep }) => {
       }
 
       try {
-        // 🔥 Dynamic institute
         const instituteId = user.uid;
         const docRef = doc(db, "institutes", instituteId);
         const docSnap = await getDoc(docRef);
@@ -48,15 +53,19 @@ const LocationAccessibility = ({ setStep }) => {
           ].filter(Boolean);
 
           setFormData({
-            fullAddress: addressParts.join(", "),
+            fullAddress: data.street || addressParts.join(", "),
             landmark: data.landmark || "",
-            distance: "", // keep empty / auto later
+            distance: "",
             contactNumber: data.phoneNumber || "",
             email: data.email || "",
             website: data.websiteLink || "",
           });
+
+          // 🔥 load location fields
+          setLatitude(data.latitude || "");
+          setLongitude(data.longitude || "");
+          setLocationName(data.locationName || "");
         } else {
-          // no doc → empty
           setFormData({
             fullAddress: "",
             landmark: "",
@@ -75,6 +84,54 @@ const LocationAccessibility = ({ setStep }) => {
 
     fetchData();
   }, [user]);
+
+  // 🔥 GET CURRENT LOCATION
+  const handleGetLocation = async () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported");
+      return;
+    }
+
+    try {
+      setLocLoading(true);
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+
+          setLatitude(String(lat));
+          setLongitude(String(lon));
+
+          // 🌍 Reverse Geocoding (FREE)
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+          );
+          const data = await res.json();
+
+          const address = data.display_name || "";
+
+          setLocationName(address);
+
+          // 🔥 Auto-fill full address
+          setFormData((prev) => ({
+            ...prev,
+            fullAddress: address,
+          }));
+
+          setLocLoading(false);
+        },
+        (error) => {
+          console.error(error);
+          alert("Unable to fetch location");
+          setLocLoading(false);
+        },
+      );
+    } catch (err) {
+      console.error(err);
+      setLocLoading(false);
+    }
+  };
 
   // ✅ HANDLE CHANGE
   const handleChange = (e) => {
@@ -111,7 +168,6 @@ const LocationAccessibility = ({ setStep }) => {
       }
     });
 
-    // Email format validation
     if (formData.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
@@ -119,7 +175,6 @@ const LocationAccessibility = ({ setStep }) => {
       }
     }
 
-    // Contact number validation (10 digits example)
     if (formData.contactNumber) {
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(formData.contactNumber)) {
@@ -128,7 +183,6 @@ const LocationAccessibility = ({ setStep }) => {
     }
 
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
 
@@ -140,7 +194,6 @@ const LocationAccessibility = ({ setStep }) => {
     }
 
     const isValid = validate();
-
     if (!isValid) {
       alert("Please fill all required details correctly.");
       return;
@@ -149,21 +202,26 @@ const LocationAccessibility = ({ setStep }) => {
     try {
       setSaving(true);
 
-      // 🔥 Dynamic institute
       const instituteId = user.uid;
       const docRef = doc(db, "institutes", instituteId);
 
       await setDoc(
         docRef,
         {
-          street: formData.fullAddress, // storing full address string
+          street: formData.fullAddress, // full address
           landmark: formData.landmark,
           phoneNumber: formData.contactNumber,
           email: formData.email,
           websiteLink: formData.website,
+
+          // 🔥 NEW LOCATION FIELDS
+          latitude: latitude || "",
+          longitude: longitude || "",
+          locationName: locationName || formData.fullAddress,
+
           updatedAt: serverTimestamp(),
         },
-        { merge: true }, // ✅ keeps other fields safe
+        { merge: true },
       );
 
       alert("Saved Successfully!");
@@ -174,9 +232,8 @@ const LocationAccessibility = ({ setStep }) => {
       setSaving(false);
     }
   };
-  if (loading) {
-    return <p className="text-gray-500">Loading...</p>;
-  }
+
+  if (loading) return <p className="text-gray-500">Loading...</p>;
 
   const handleCancel = () => {
     setFormData({
@@ -187,7 +244,6 @@ const LocationAccessibility = ({ setStep }) => {
       email: "",
       website: "",
     });
-
     setErrors({});
   };
 
@@ -209,10 +265,21 @@ const LocationAccessibility = ({ setStep }) => {
       <div className="border-b border-gray-300 mb-6"></div>
 
       {/* TITLE */}
-      <h2 className="text-orange-500 font-semibold text-lg sm:text-xl mb-6">
+      <h2 className="text-orange-500 font-semibold text-lg sm:text-xl mb-3">
         Location & Accessibility
       </h2>
 
+      {/* 🔥 LOCATION BUTTON (NEW, UI SAFE) */}
+      <button
+        type="button"
+        onClick={handleGetLocation}
+        disabled={locLoading}
+        className="mb-5 text-sm bg-orange-100 text-orange-700 px-4 py-2 rounded-md hover:bg-orange-200 transition"
+      >
+        {locLoading ? "Fetching location..." : "📍 Use Current Location"}
+      </button>
+
+      {/* FORM UI (UNCHANGED) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* Full Address */}
         <div className="flex flex-col sm:col-span-2">
@@ -256,7 +323,26 @@ const LocationAccessibility = ({ setStep }) => {
             )}
           </div>
         ))}
+        {/* 🔥 Latitude & Longitude */}
+        <div className="flex flex-col">
+          <label className="text-sm font-medium mb-2">Latitude</label>
+          <input
+            value={latitude}
+            onChange={(e) => setLatitude(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+            placeholder="e.g. 17.48930115508228"
+          />
+        </div>
 
+        <div className="flex flex-col">
+          <label className="text-sm font-medium mb-2">Longitude</label>
+          <input
+            value={longitude}
+            onChange={(e) => setLongitude(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+            placeholder="e.g. 78.3985042909833"
+          />
+        </div>
         {/* Website */}
         <div className="flex flex-col sm:col-span-2">
           <label className="text-sm font-medium mb-2">
@@ -268,9 +354,6 @@ const LocationAccessibility = ({ setStep }) => {
             onChange={handleChange}
             className={inputClass("website")}
           />
-          {errors.website && (
-            <span className="text-red-500 text-sm mt-1">{errors.website}</span>
-          )}
         </div>
       </div>
 

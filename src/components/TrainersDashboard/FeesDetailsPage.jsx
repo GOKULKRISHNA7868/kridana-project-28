@@ -1,9 +1,16 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db, auth } from "../../firebase";
-import { useRef } from "react";
 import { ChevronDown } from "lucide-react";
-import { setDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 
 const MONTHS = [
   { label: "January", value: "01" },
@@ -24,36 +31,29 @@ const FeesDetailsPage = () => {
   const instituteId = auth.currentUser?.uid;
 
   const [students, setStudents] = useState([]);
-  const [fees, setFees] = useState([]);
+  const [institutesFees, setInstitutesFees] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState("");
   const [search, setSearch] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const monthRef = useRef(null);
 
-  const [addData, setAddData] = useState({
-    firstName: "",
-    lastName: "",
-    sessions: "",
-    fees: "",
+  // Modal for editing total fee + paid amount
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editData, setEditData] = useState({
+    totalFee: "",
+    paidAmount: "",
+    paidDate: "",
   });
 
-  const [editData, setEditData] = useState({
-    firstName: "",
-    lastName: "",
-    sessions: "",
-    fees: "",
-  });
+  /* ================= CLICK OUTSIDE ================= */
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (monthRef.current && !monthRef.current.contains(e.target)) {
         setShowMonthDropdown(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -61,28 +61,28 @@ const FeesDetailsPage = () => {
   /* ================= FETCH STUDENTS ================= */
   useEffect(() => {
     if (!instituteId) return;
-
     const q = query(
       collection(db, "trainerstudents"),
       where("trainerId", "==", instituteId),
     );
-
     return onSnapshot(q, (snap) => {
-      setStudents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const studentsData = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+      setStudents(studentsData);
     });
   }, [instituteId]);
 
-  /* ================= FETCH FEES ================= */
-  /* ================= FETCH FEES ================= */
+  /* ================= FETCH INSTITUTES FEES ================= */
   useEffect(() => {
     if (!instituteId) return;
     const q = query(
-      collection(db, "trainerStudentFees"),
+      collection(db, "institutesFees"),
       where("trainerId", "==", instituteId),
     );
-
     return onSnapshot(q, (snap) => {
-      setFees(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setInstitutesFees(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
   }, [instituteId]);
 
@@ -95,66 +95,82 @@ const FeesDetailsPage = () => {
     );
   }, [students, search]);
 
-  const handleAdd = () => setShowAddModal(true);
+  /* ================= EDIT PAYMENT + TOTAL FEE ================= */
+  const handleEditStudent = (student) => {
+    setSelectedStudent(student);
 
-  const handleEdit = () => {
-    if (!selectedStudent) {
-      alert("Select a student first");
-      return;
-    }
+    const existingFee = institutesFees.find(
+      (f) => f.studentId === student.id && f.month === selectedMonth,
+    );
 
     setEditData({
-      firstName: selectedStudent.firstName || "",
-      lastName: selectedStudent.lastName || "",
-      sessions: selectedStudent.sessions || "",
-      fees: selectedStudent.fees || "",
+      totalFee: student.monthlyFee || student.fees || "",
+      paidAmount: existingFee?.paidAmount || "",
+      paidDate: existingFee?.paidDate || "",
     });
 
     setShowEditModal(true);
   };
 
-  const addStudent = async () => {
-    const newRef = doc(collection(db, "trainerstudents"));
+  const updateStudentPayment = async () => {
+    if (!selectedStudent) return;
 
-    await setDoc(newRef, {
-      ...addData,
-      trainerId: instituteId,
-      createdAt: serverTimestamp(),
+    if (!selectedMonth) {
+      alert("Please select a month before entering paid amount");
+      return;
+    }
+
+    const { totalFee, paidAmount, paidDate } = editData;
+
+    if (!totalFee) {
+      alert("Please enter total fee");
+      return;
+    }
+
+    // Update monthlyFee in trainerstudents collection
+    await updateDoc(doc(db, "trainerstudents", selectedStudent.id), {
+      monthlyFee: Number(totalFee),
     });
 
-    setShowAddModal(false);
-  };
-
-  const updateStudent = async () => {
-    await updateDoc(doc(db, "trainerstudents", selectedStudent.id), editData);
+    // Save payment in institutesFees
+    if (paidAmount && paidDate) {
+      await setDoc(doc(collection(db, "institutesFees")), {
+        studentId: selectedStudent.id,
+        trainerId: instituteId,
+        totalAmount: Number(totalFee),
+        paidAmount: Number(paidAmount),
+        paidDate,
+        month: selectedMonth,
+        createdAt: serverTimestamp(),
+      });
+    }
 
     setShowEditModal(false);
   };
 
   /* ================= CALCULATIONS ================= */
-
   const totalStudents = students.length;
 
-  const totalAmount = students.reduce((sum, s) => sum + Number(s.fees || 0), 0);
+  const totalAmount = students.reduce(
+    (sum, s) => sum + Number(s.monthlyFee || s.fees || 0),
+    0,
+  );
 
-  const totalPaid = fees
-    .filter((f) => f.status === "paid")
-    .reduce((sum, f) => sum + Number(f.finalAmount || 0), 0);
+  const totalPaid = institutesFees
+    .filter((f) => f.month === selectedMonth)
+    .reduce((sum, f) => sum + Number(f.paidAmount || 0), 0);
 
   const totalPending = totalAmount - totalPaid;
 
   const getStudentFeeData = (student) => {
-    const studentFee = Number(student.fees || 0);
-
-    const paidFees = fees
-      .filter((f) => f.studentId === student.id && f.status === "paid")
-      .reduce((sum, f) => sum + Number(f.finalAmount || 0), 0);
-
-    return {
-      total: studentFee,
-      paid: paidFees,
-      pending: studentFee - paidFees,
-    };
+    const total = Number(student.monthlyFee || student.fees || 0);
+    const feeRecord = institutesFees.find(
+      (f) => f.studentId === student.id && f.month === selectedMonth,
+    );
+    const paid = Number(feeRecord?.paidAmount || 0);
+    const pending = total - paid;
+    const paidDate = feeRecord?.paidDate || "-";
+    return { total, paid, pending, paidDate };
   };
 
   return (
@@ -172,10 +188,11 @@ const FeesDetailsPage = () => {
                 ? MONTHS.find((m) => m.value === selectedMonth)?.label
                 : "Select Month"}
             </span>
-
             <ChevronDown
               size={18}
-              className={`ml-2 flex-shrink-0 transition-transform ${showMonthDropdown ? "rotate-180" : ""}`}
+              className={`ml-2 flex-shrink-0 transition-transform ${
+                showMonthDropdown ? "rotate-180" : ""
+              }`}
             />
           </button>
 
@@ -206,7 +223,7 @@ const FeesDetailsPage = () => {
         <StatCard title="Total Students" value={totalStudents} />
       </div>
 
-      {/* SEARCH + ADD EDIT */}
+      {/* SEARCH */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
         <input
           type="text"
@@ -215,22 +232,6 @@ const FeesDetailsPage = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="border border-orange-400 rounded px-4 py-2 w-full sm:w-80 focus:outline-none focus:ring-0 focus:border-orange-400"
         />
-
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-orange-500 text-white px-4 py-2 rounded"
-          >
-            + Add
-          </button>
-
-          <button
-            onClick={handleEdit}
-            className="border border-orange-500 text-orange-500 px-4 py-2 rounded"
-          >
-            Edit
-          </button>
-        </div>
       </div>
 
       {/* TABLE */}
@@ -249,60 +250,32 @@ const FeesDetailsPage = () => {
           return (
             <div
               key={student.id}
-              onClick={() => setSelectedStudent(student)}
-              className={`grid grid-cols-5 min-w-[700px] px-6 py-4 border-t items-center cursor-pointer
-  ${selectedStudent?.id === student.id ? "bg-orange-50" : ""}`}
+              className={`grid grid-cols-5 min-w-[700px] px-6 py-4 border-t items-center cursor-pointer ${
+                selectedStudent?.id === student.id ? "bg-orange-50" : ""
+              }`}
+              onClick={() => handleEditStudent(student)}
             >
               <div>
                 {student.firstName} {student.lastName}
               </div>
-
-              {/* ✅ THIS IS THE FIX */}
               <div>{student.sessions || "-"}</div>
               <div>₹ {data.total}</div>
-              <div className="text-green-600 font-semibold">₹ {data.paid}</div>
+              <div className="text-green-600 font-semibold cursor-pointer">
+                ₹ {data.paid} {data.paidDate !== "-" && `on ${data.paidDate}`}
+              </div>
               <div className="text-red-600 font-semibold">₹ {data.pending}</div>
             </div>
           );
         })}
       </div>
 
-      {/* SAVE & CANCEL */}
-      <div className="flex flex-col sm:flex-row justify-end gap-6 mt-8">
-        <button
-          onClick={() => {
-            setSelectedMonth("");
-            setSearch("");
-          }}
-          className="text-lg font-medium text-black"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={() => {
-            alert("Saved Successfully ✅");
-          }}
-          className="bg-orange-500 text-white px-8 py-3 rounded-lg text-lg font-semibold w-full sm:w-auto"
-        >
-          Save
-        </button>
-      </div>
-      {showAddModal && (
-        <ModalForm
-          title="Add Student"
-          data={addData}
-          setData={setAddData}
-          onSave={addStudent}
-          onClose={() => setShowAddModal(false)}
-        />
-      )}
+      {/* EDIT MODAL */}
       {showEditModal && (
         <ModalForm
-          title="Edit Student"
+          title="Update Fee Details"
           data={editData}
           setData={setEditData}
-          onSave={updateStudent}
+          onSave={updateStudentPayment}
           onClose={() => setShowEditModal(false)}
         />
       )}
@@ -316,20 +289,35 @@ const StatCard = ({ title, value }) => (
     <p className="text-xl font-bold text-orange-500 mt-2">{value}</p>
   </div>
 );
+
 const ModalForm = ({ title, data, setData, onSave, onClose }) => (
   <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
     <div className="bg-white p-6 rounded-xl w-[90%] sm:w-96 space-y-4">
       <h2 className="font-semibold">{title}</h2>
 
-      {Object.keys(data).map((k) => (
-        <input
-          key={k}
-          className="border w-full p-2 rounded"
-          placeholder={k}
-          value={data[k]}
-          onChange={(e) => setData({ ...data, [k]: e.target.value })}
-        />
-      ))}
+      <input
+        type="number"
+        className="border w-full p-2 rounded"
+        placeholder="Total Fee"
+        value={data.totalFee}
+        onChange={(e) => setData({ ...data, totalFee: e.target.value })}
+      />
+
+      <input
+        type="number"
+        className="border w-full p-2 rounded"
+        placeholder="Paid Amount"
+        value={data.paidAmount}
+        onChange={(e) => setData({ ...data, paidAmount: e.target.value })}
+      />
+
+      <input
+        type="date"
+        className="border w-full p-2 rounded"
+        placeholder="Paid Date"
+        value={data.paidDate}
+        onChange={(e) => setData({ ...data, paidDate: e.target.value })}
+      />
 
       <div className="flex justify-end gap-3">
         <button onClick={onClose}>Cancel</button>

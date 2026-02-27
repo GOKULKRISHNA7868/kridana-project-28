@@ -66,6 +66,7 @@ import "./index.css";
 import Plans from "./pages/Plans.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import PaymentAndRefundPolicy from "./pages/PaymentAndRefundPolicy";
+import ChatBox from "./pages/ChatBox.jsx";
 function App() {
   const location = useLocation();
 
@@ -101,6 +102,7 @@ function App() {
               <Route path="/signup" element={<Signup />} />
               <Route path="/trainer-signup" element={<TrainerSignup />} />
               <Route path="/institute-signup" element={<InstituteSignup />} />
+              <Route path="/chat/:chatId" element={<ChatBox />} />
 
               {/* LANDING */}
               <Route path="/RoleSelection" element={<RoleSelection />} />
@@ -171,7 +173,7 @@ function App() {
               />
 
               {/* SERVICES */}
-               <Route path="/categories" element={<Categories />} />
+              <Route path="/categories" element={<Categories />} />
               <Route path="/services/martial-arts" element={<MartialArts />} />
               <Route path="/services/teamball" element={<TeamBallSports />} />
               <Route path="/services/racketsports" element={<RacketSports />} />

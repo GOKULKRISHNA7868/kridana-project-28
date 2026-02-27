@@ -18,24 +18,28 @@ const MediaGallery = ({ setStep }) => {
     uniformImages: [],
   });
 
+  const [reels, setReels] = useState([]); // separate top-level reels array
+
   // ================= LOAD DATA =================
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.uid) return;
 
       try {
-        const docRef = doc(db, "myactivity", user.uid);
+        const docRef = doc(db, "trainers", user.uid);
         const docSnap = await getDoc(docRef);
 
-        if (docSnap.exists() && docSnap.data().mediaGallery) {
-          const data = docSnap.data().mediaGallery;
+        if (docSnap.exists()) {
+          const data = docSnap.data();
 
           setFormData({
-            trainingImages: data.trainingImages || [],
-            facilityImages: data.facilityImages || [],
-            equipmentImages: data.equipmentImages || [],
-            uniformImages: data.uniformImages || [],
+            trainingImages: data.mediaGallery?.trainingImages || [],
+            facilityImages: data.mediaGallery?.facilityImages || [],
+            equipmentImages: data.mediaGallery?.equipmentImages || [],
+            uniformImages: data.mediaGallery?.uniformImages || [],
           });
+
+          setReels(data.reels || []); // load existing top-level reels
         }
       } catch (error) {
         console.error("Error loading media gallery:", error);
@@ -92,10 +96,14 @@ const MediaGallery = ({ setStep }) => {
       const url = await uploadToCloudinary(file, type);
 
       if (url) {
-        setFormData((prev) => ({
-          ...prev,
-          [field]: [...(prev[field] || []), url],
-        }));
+        if (type === "video") {
+          setReels((prev) => [...prev, url]); // push video URLs to top-level reels array
+        } else {
+          setFormData((prev) => ({
+            ...prev,
+            [field]: [...(prev[field] || []), url],
+          }));
+        }
       }
     }
 
@@ -110,9 +118,10 @@ const MediaGallery = ({ setStep }) => {
       setSaving(true);
 
       await setDoc(
-        doc(db, "myactivity", user.uid),
+        doc(db, "trainers", user.uid),
         {
           mediaGallery: formData,
+          reels: reels, // save top-level reels
           updatedAt: serverTimestamp(),
         },
         { merge: true },
@@ -135,6 +144,7 @@ const MediaGallery = ({ setStep }) => {
       equipmentImages: [],
       uniformImages: [],
     });
+    setReels([]);
   };
 
   if (loading) {
@@ -160,6 +170,7 @@ const MediaGallery = ({ setStep }) => {
 
         {/* SINGLE COLUMN LAYOUT */}
         <div className="grid grid-cols-1 gap-6">
+          {/* IMAGE FIELDS */}
           {[
             { label: "Training Images", name: "trainingImages" },
             { label: "Facility Images", name: "facilityImages" },
@@ -190,6 +201,31 @@ const MediaGallery = ({ setStep }) => {
               </label>
             </div>
           ))}
+
+          {/* VIDEO / REELS FIELD */}
+          <div className="flex flex-col">
+            <label className="text-sm font-medium mb-2">Reels / Videos</label>
+
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                name="reels"
+                accept="video/*"
+                multiple
+                onChange={(e) => handleFileUpload(e, "reels", "video")}
+                className="hidden"
+              />
+
+              <div className="border border-gray-300 rounded-md px-3 py-2 flex justify-between items-center hover:border-orange-500 transition">
+                <span className="text-gray-500">
+                  {reels?.length > 0
+                    ? `${reels.length} video(s) uploaded`
+                    : "Upload Videos"}
+                </span>
+                <img src="/upload.png" alt="upload" className="w-5 h-5" />
+              </div>
+            </label>
+          </div>
         </div>
 
         {uploading && (

@@ -56,7 +56,6 @@ const AnalyticsPage = () => {
         query(collection(db, "trainers"), where("trainerId", "==", user.uid)),
       );
 
-
       let reelStats = [];
 
       for (const docu of instituteSnap.docs) {
@@ -65,7 +64,6 @@ const AnalyticsPage = () => {
         if (Array.isArray(data.reels)) {
           for (let idx = 0; idx < data.reels.length; idx++) {
             const reelId = `trainer_${docu.id}_${idx}`;
-
 
             const viewsSnap = await getDocs(
               query(collection(db, "reelViews"), where("reelId", "==", reelId)),
@@ -121,17 +119,13 @@ const AnalyticsPage = () => {
     fetchTopReels();
   }, [user, activeTab]);
 
-
   /* ================= WORKFORCE ================= */
   useEffect(() => {
     if (!user) return;
 
     const fetchWorkforce = async () => {
       const studentsSnap = await getDocs(
-        query(
-          collection(db, "students"),
-          where("trainerId", "==", user.uid)
-        )
+        query(collection(db, "students"), where("trainerId", "==", user.uid)),
       );
 
       setCustomerStats({
@@ -182,27 +176,21 @@ const AnalyticsPage = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 relative">
-
         <h1 className="text-3xl font-bold">Trainer Performance Overview</h1>
-
 
         <div className="relative inline-block">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-xl font-semibold shadow-md flex items-center justify-center gap-2"
-
           >
             <span>Select Month</span>
             <span>▼</span>
-
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-3 w-40 sm:w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-50"
-            >
+            <div className="absolute right-0 mt-3 w-40 sm:w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
               <div
                 onClick={() => {
                   setFilterMonths(1);
@@ -239,7 +227,6 @@ const AnalyticsPage = () => {
 
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-
         <div className="border p-4 rounded-lg bg-orange-50">
           <p>Profile Views</p>
           <p className="text-xl font-bold text-orange-600">
@@ -272,15 +259,15 @@ const AnalyticsPage = () => {
 
         {/* TABS */}
         <div className="flex gap-6 border-b mb-6 overflow-x-auto whitespace-nowrap">
-
           {["views", "likes", "dislikes", "comments"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-2 capitalize ${activeTab === tab
-                ? "text-orange-600 border-b-2 border-orange-600 font-semibold"
-                : "text-gray-600"
-                }`}
+              className={`pb-2 capitalize ${
+                activeTab === tab
+                  ? "text-orange-600 border-b-2 border-orange-600 font-semibold"
+                  : "text-gray-600"
+              }`}
             >
               {`Most ${tab}`}
             </button>
@@ -289,7 +276,6 @@ const AnalyticsPage = () => {
 
         {/* TABLE */}
         <div className="hidden md:grid grid-cols-6 font-semibold text-orange-600 mb-4">
-
           <div>Videos</div>
           <div>Title</div>
           <div>Views</div>
@@ -303,7 +289,6 @@ const AnalyticsPage = () => {
             key={i}
             className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-0 items-center py-4 border-t"
           >
-
             <div className="w-20 h-14 bg-gray-300 rounded-md"></div>
             <div>{reel.title}</div>
             <div>{reel.views}</div>
@@ -329,7 +314,6 @@ const AnalyticsPage = () => {
       <h2 className="text-xl font-semibold mt-10 mb-4">Payroll Overview</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
         {/* LEFT SIDE GRAPH */}
         <div className="md:col-span-2 bg-white shadow rounded-lg p-5">
           <ResponsiveContainer width="100%" height={350}>
@@ -379,8 +363,6 @@ const AnalyticsPage = () => {
         <h2 className="text-2xl font-bold mb-6">Workforce & Clients Metrics</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-
           <div className="border p-6 rounded-xl bg-white">
             <h3 className="text-xl font-semibold">Customers</h3>
             <p>Joined: {customerStats.joined}</p>

@@ -4,8 +4,6 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../../firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import CustomerCentricPolicies from "../../pages/CustomerCentricPolicies";
-import PrivacyPolicy from "../../pages/Privacy";
 
 import {
   collection,
@@ -15,46 +13,85 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-
-// 
-import ChatBox from "./ChatBox";
-import Timetables from "./Timetables.jsx";
-
-import MyAccount from "./MyAccount";
-import Dashboard from "./Dashboard";
+import CheckinCheckout from "./CheckinCheckout";
+import Studenttimetables from "./Student timetables";
+import TrainersTimetables from "./TrainersTimetables";
 import FeesDetailsPage from "./FeesDetailsPage";
-/* =============================
+import TakeAttendance from "./TakeAttendance";
+import Myattendance from "./Myattendance";
+import TrainerStudentAttendance from "./TrainerStudentAttendance";
+import TrainerStudentsFee from "./TrainerStudentsFee";
+import MyOders from "./MyOders";
+import BookedDemo from "./BookedDemo";
+import Payslips from "./Payslips";
+import Reports from "./Reports";
+import Dashboard from "./Dashboard";
+import Timetables from "./Timetables";
+import ChatBox from "./ChatBox";
+import TrainerDashboard from "./TrainerDashboard";
+import CustomerCentricPolicies from "../../pages/CustomerCentricPolicies";
+import PrivacyPolicy from "../../pages/Privacy";
+import ChatBoxTS from "./ChatBoxTS";
+import UserMyAccount from "./UserMyAccount";
+/* ============================= 
    SIDEBAR ITEMS
 ============================= */
-
-
-const sidebarItems = [
+const studentSidebarItems = [
   "Dashboard",
   "Time Table",
   "Chat Box",
   "My Account",
   "Fees Details",
 ];
-const SettingsItems = [
-  "Customer Policy",
-  "Privacy Policy",
-  "Logout",
+
+const trainerSidebarItems = [
+  "CheckinCheckout",
+  "Trainer's Timetables",
+  "My Attendance",
+  "Payslips",
+  "Take Attendance",
+  "Log Out",
 ];
 
-// ✅ for OTHER USERS
+const trainerStudentSidebarItems = [
+  "TrainerDashboard",
+  "Time Tables",
+  "ChatBox",
+  "My Account",
+  "Fee Details",
+];
 
+const otherUserSidebarItems = [
+  "Booked Demos",
+  "MyOders",
+  "My Account",
+  "Log Out",
+];
+const SettingsItems = ["Customer Policy", "Privacy Policy", "Logout"];
+/* ============================= 
+   WELCOME SCREEN
+============================= */
+const WelcomeDashboard = () => (
+  <div className="flex flex-col items-center justify-center h-full text-center">
+    <h1 className="text-3xl font-bold text-orange-700 mb-4">
+      Welcome to your Dashboard 👋
+    </h1>
+    <p className="text-lg text-gray-300">
+      Use the menu on the left to get started.
+    </p>
+  </div>
+);
 
-
-
+/* ============================= 
+   MAIN DASHBOARD
+============================= */
 const UserDashboard = () => {
-  const [activeMenu, setActiveMenu] = useState("Dashboard");
+  const [activeMenu, setActiveMenu] = useState("WELCOME");
   const { user } = useAuth();
   const navigate = useNavigate();
   const idleTimer = useRef(null);
 
   const [role, setRole] = useState(null);
-
-  // ✅ NEW: Role Loading Fix (Avoid Flash)
   const [roleLoading, setRoleLoading] = useState(true);
 
   const [students, setStudents] = useState([]);
@@ -62,16 +99,14 @@ const UserDashboard = () => {
   const [familyStudents, setFamilyStudents] = useState([]);
   const [selectedStudentUid, setSelectedStudentUid] = useState("");
 
-  /* =============================
-     ⏱ AUTO LOGOUT (5 MIN)
+  /* ============================= 
+     AUTO LOGOUT (5 MIN)
   ============================= */
-
   useEffect(() => {
     const resetTimer = () => {
       if (idleTimer.current) clearTimeout(idleTimer.current);
       idleTimer.current = setTimeout(handleLogout, 5 * 60 * 1000);
     };
-
     ["mousemove", "keydown", "click", "scroll"].forEach((e) =>
       window.addEventListener(e, resetTimer),
     );
@@ -85,22 +120,22 @@ const UserDashboard = () => {
     };
   }, []);
 
-  /* =============================
-     🚪 LOGOUT
+  /* ============================= 
+     LOGOUT
   ============================= */
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/", { replace: true });
   };
 
-  /* =============================
-     🔑 ROLE DETECTION
+  /* ============================= 
+     ROLE DETECTION
   ============================= */
   useEffect(() => {
     if (!user?.uid) return;
 
     const detectRole = async () => {
-      setRoleLoading(true); // ✅ Start Loading
+      setRoleLoading(true);
 
       const studentSnap = await getDoc(doc(db, "students", user.uid));
       if (studentSnap.exists()) {
@@ -124,16 +159,16 @@ const UserDashboard = () => {
         setRoleLoading(false);
         return;
       }
+
       const familySnap = await getDoc(doc(db, "families", user.uid));
       if (familySnap.exists()) {
-        setRole("trainerstudent"); // treat family as trainerstudent
+        setRole("trainerstudent");
         setFamilyStudents(familySnap.data().students || []);
         setSelectedStudentUid(familySnap.data().students?.[0] || "");
         setRoleLoading(false);
         return;
       }
 
-      // ✅ other users
       setRole("other");
       setRoleLoading(false);
     };
@@ -141,8 +176,8 @@ const UserDashboard = () => {
     detectRole();
   }, [user]);
 
-  /* =============================
-     📂 FETCH DATA (UNCHANGED)
+  /* ============================= 
+     FETCH DATA
   ============================= */
   useEffect(() => {
     if (!user?.uid) return;
@@ -151,72 +186,103 @@ const UserDashboard = () => {
       collection(db, "students"),
       where("instituteId", "==", user.uid),
     );
-
-    const unsubStudents = onSnapshot(studentsQuery, (snap) => {
-      setStudents(
-        snap.docs.map((doc) => ({
-          uid: doc.id,
-          ...doc.data(),
-        })),
-      );
-    });
+    const unsubStudents = onSnapshot(studentsQuery, (snap) =>
+      setStudents(snap.docs.map((doc) => ({ uid: doc.id, ...doc.data() }))),
+    );
 
     const trainersQuery = query(
       collection(db, "InstituteTrainers"),
       where("instituteId", "==", user.uid),
     );
-
-    const unsubTrainers = onSnapshot(trainersQuery, (snap) => {
+    const unsubTrainers = onSnapshot(trainersQuery, (snap) =>
       setTrainers(
-        snap.docs.map((doc) => ({
-          trainerUid: doc.id,
-          ...doc.data(),
-        })),
-      );
-    });
+        snap.docs.map((doc) => ({ trainerUid: doc.id, ...doc.data() })),
+      ),
+    );
 
     return () => {
       unsubStudents();
       unsubTrainers();
     };
   }, [user]);
+  /* ============================= 
+   DEFAULT ACTIVE MENU BASED ON ROLE
+============================= */
+  useEffect(() => {
+    if (!role) return;
 
-  /* =============================
-     📂 MAIN CONTENT
+    if (role === "student") setActiveMenu("Dashboard");
+    else if (role === "trainerstudent") setActiveMenu("TrainerDashboard");
+    else setActiveMenu("WELCOME"); // or whatever default for trainer/other
+  }, [role]);
+  /* ============================= 
+     MAIN CONTENT RENDER
   ============================= */
   const renderMainContent = () => {
     switch (activeMenu) {
       case "Dashboard":
-  return <Dashboard />;
-
-    case "Time Table":
-  return <Timetables />;
-
-      case "Chat Box":
-        return <ChatBox />;
-
-    case "My Account":
-  return <MyAccount />;
+        return <Dashboard />;
+      case "Student Timetables":
+        return <Studenttimetables />;
+      case "Trainer's Timetables":
+        return <TrainersTimetables />;
       case "Fees Details":
         return <FeesDetailsPage />;
+      case "Take Attendance":
+        return <TakeAttendance />;
+      case "My Attendance":
+        return <Myattendance />;
+      case "TrainerStudentAttendance":
+        return <TrainerStudentAttendance studentUid={selectedStudentUid} />;
+      case "Fee Details":
+        return <TrainerStudentsFee studentUid={selectedStudentUid} />;
+      case "CheckinCheckout":
+        return <CheckinCheckout />;
+      case "MyOders":
+        return <MyOders />;
+      case "Booked Demos":
+        return <BookedDemo />;
+      case "Payslips":
+        return <Payslips />;
+      case "Reports":
+        return <Reports />;
+      case "Time Table":
+        return <Timetables />;
+      case "Chat Box":
+        return <ChatBox />;
+      case "TrainerDashboard":
+        return <TrainerDashboard />;
+      case "Time Tables":
+        return <TrainersTimetables />;
+      case "Customer Policy":
+        return <CustomerCentricPolicies />;
 
-case "Customer Policy":
-  return <CustomerCentricPolicies />;
-
-case "Privacy Policy":
-  return <PrivacyPolicy />;
+      case "Privacy Policy":
+        return <PrivacyPolicy />;
+      case "ChatBox":
+        return <ChatBoxTS />;
+      case "My Account":
+        return <UserMyAccount />;
 
       default:
         return null;
     }
   };
 
-  /* =============================
-     🧭 SIDEBAR BASED ON ROLE
+  /* ============================= 
+     SIDEBAR ITEMS BASED ON ROLE
   ============================= */
+  const sidebarItems =
+    role === "student"
+      ? studentSidebarItems
+      : role === "trainer"
+        ? trainerSidebarItems
+        : role === "trainerstudent"
+          ? trainerStudentSidebarItems
+          : otherUserSidebarItems;
 
-  /* =============================
-     ✅ LOADING SCREEN (NO FLASH)
+  /* ============================= 
+     LOADING SCREEN
   ============================= */
   if (roleLoading) {
     return (
@@ -231,83 +297,89 @@ case "Privacy Policy":
     );
   }
 
+  /* ============================= 
+     DASHBOARD UI
+  ============================= */
   return (
-  <div className="h-screen flex bg-gray-700 overflow-hidden">
+    <div className="h-screen flex bg-gray-700 overflow-hidden">
       {/* Sidebar */}
-      {/* ===== SIDEBAR ===== */}
       <aside className="w-72 bg-gray-700 p-3 overflow-y-auto">
-
-        {/* ===== INSTITUTE CARD ===== */}
+        {/* User Card */}
         <div className="bg-black rounded-xl p-4 flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-orange-400">
             <span className="text-orange-400 font-bold">
               {user?.displayName?.charAt(0) || "U"}
             </span>
           </div>
-
           <span className="text-orange-500 font-bold text-lg">
             {user?.displayName || "User"}
           </span>
         </div>
 
-        {/* ===== MENU CARD ===== */}
-        <div className="bg-black rounded-xl p-3 mb-3">
+        {/* FAMILY STUDENT SELECTION */}
+        {role === "trainerstudent" && familyStudents.length > 0 && (
+          <div className="bg-black rounded-xl p-3 mb-3">
+            <label className="block text-sm text-orange-400 font-semibold mb-1">
+              Select Student:
+            </label>
+            <select
+              value={selectedStudentUid}
+              onChange={(e) => setSelectedStudentUid(e.target.value)}
+              className="w-full border border-orange-400 rounded px-2 py-1 text-sm bg-gray-800 text-white"
+            >
+              {familyStudents.map((uid) => (
+                <option key={uid} value={uid}>
+                  {uid}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
+        {/* Sidebar Items */}
+        <div className="bg-black rounded-xl p-3 mb-3">
           {sidebarItems.map((item) => (
             <button
               key={item}
-              onClick={() => setActiveMenu(item)}
-              className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-2 transition-all
-        ${activeMenu === item
-                  ? "text-orange-500 font-semibold"
+              type="button"
+              onClick={() => {
+                if (item === "Log Out") return handleLogout();
+                setActiveMenu(item);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-2 transition-all mb-1 ${
+                activeMenu === item
+                  ? "text-orange-500 font-semibold bg-gray-800"
                   : "text-white hover:text-orange-400"
-                }`}
+              }`}
             >
-              {item === "Dashboard" && (
-                <div className="grid grid-cols-2 gap-1 w-4 h-4">
-                  <div className="bg-orange-500 w-1.5 h-1.5"></div>
-                  <div className="bg-orange-500 w-1.5 h-1.5"></div>
-                  <div className="bg-orange-500 w-1.5 h-1.5"></div>
-                  <div className="bg-orange-500 w-1.5 h-1.5"></div>
-                </div>
-              )}
-
               {item}
             </button>
           ))}
-
         </div>
-
-        {/* ===== SETTINGS CARD ===== */}
         <div className="bg-black rounded-xl p-4">
+          <h3 className="text-white font-bold text-lg mb-3">Settings</h3>
 
-          <h3 className="text-white font-bold text-lg mb-3">
-            Settings
-          </h3>
-
-{SettingsItems.map((item) => (
-  <button
-    key={item}
-    onClick={() => {
-      if (item === "Logout") return handleLogout();
-      setActiveMenu(item);
-    }}
-    className={`block w-full text-left py-2 ${
-      activeMenu === item
-        ? "text-orange-500 font-semibold"
-        : "text-white hover:text-orange-400"
-    }`}
-  >
-    {item}
-  </button>
-))}
-
+          {SettingsItems.map((item) => (
+            <button
+              key={item}
+              onClick={() => {
+                if (item === "Logout") return handleLogout();
+                setActiveMenu(item);
+              }}
+              className={`block w-full text-left py-2 ${
+                activeMenu === item
+                  ? "text-orange-500 font-semibold"
+                  : "text-white hover:text-orange-400"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
         </div>
-
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 bg-white px-10 py-8 overflow-y-auto h-full">
+      {/* Main Content */}
+      <main className="flex-1 bg-white px-10 py-8 overflow-y-auto">
         {renderMainContent()}
       </main>
     </div>

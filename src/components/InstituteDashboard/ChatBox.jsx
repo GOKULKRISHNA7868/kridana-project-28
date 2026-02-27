@@ -39,6 +39,7 @@ const ChatBox = () => {
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [renameValue, setRenameValue] = useState("");
+  const [chatUsers, setChatUsers] = useState([]);
   const getValidImage = (url, name) => {
     if (!url)
       return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
@@ -49,6 +50,71 @@ const ChatBox = () => {
 
   /* ================= AUTH + INSTITUTE ================= */
   /* ================= AUTH + INSTITUTE (FIXED) ================= */
+  /* ================= CHAT MEMBERS (OUTER USERS ONLY) ================= */
+  /* ================= CHAT MEMBERS (OUTER USERS ONLY — MESSAGE FILTERED) ================= */
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "chats"),
+      where("members", "array-contains", user.uid),
+    );
+
+    const unsub = onSnapshot(q, async (snap) => {
+      let validOuterUids = new Set();
+
+      for (let d of snap.docs) {
+        const chatId = d.id;
+        const chatData = d.data();
+        const members = chatData.members || [];
+
+        // get messages
+        const msgsSnap = await getDocs(
+          query(
+            collection(db, "chats", chatId, "messages"),
+            orderBy("createdAt", "asc"),
+          ),
+        );
+
+        if (msgsSnap.empty) continue; // ❌ no messages → ignore
+
+        // check if any message is from non-institute/non-self user
+        msgsSnap.docs.forEach((m) => {
+          const msg = m.data();
+          const sender = msg.senderId;
+
+          if (sender !== user.uid) {
+            validOuterUids.add(sender); // ✅ only real senders
+          }
+        });
+      }
+
+      const externalUsers = [];
+
+      for (let uid of validOuterUids) {
+        // skip institute, students, trainers
+        if (users.find((u) => u.uid === uid)) continue;
+
+        const uRef = doc(db, "users", uid);
+        const uSnap = await getDoc(uRef);
+
+        if (uSnap.exists()) {
+          const data = uSnap.data();
+          externalUsers.push({
+            uid,
+            id: uid,
+            name: data.name || data.emailOrPhone || "User",
+            role: "outer",
+            profileImageUrl: data.profileImage || "",
+          });
+        }
+      }
+
+      setChatUsers(externalUsers);
+    });
+
+    return () => unsub();
+  }, [user, users]);
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) return;
@@ -89,6 +155,38 @@ const ChatBox = () => {
   }, []);
 
   /* ================= USERS ================= */
+  /* ================= USERS (FIXED & STABLE) ================= */
+  useEffect(() => {
+    if (!instituteId) return;
+
+    const loadOwner = async () => {
+      const instRef = doc(db, "institutes", instituteId); // 👑 OWNER
+      const instSnap = await getDoc(instRef);
+
+      if (instSnap.exists()) {
+        const data = instSnap.data();
+
+        const ownerUser = {
+          id: instituteId,
+          uid: instituteId, // 🔑 important: UID = instituteId
+          name:
+            `${data.ownerFirstName || data.firstName || ""} ${data.ownerLastName || data.lastName || ""}`.trim() ||
+            "Institute Admin",
+          role: "owner",
+          profileImageUrl: data.ownerPhotoUrl || data.profileImageUrl || "",
+        };
+
+        setUsers((prev) => {
+          const exists = prev.find((u) => u.uid === instituteId);
+          if (exists) return prev; // avoid duplicates
+          return [ownerUser, ...prev]; // 👑 owner always on top
+        });
+      }
+    };
+
+    loadOwner();
+  }, [instituteId]);
+  /* ================= USERS ================= */
   useEffect(() => {
     if (!instituteId) return;
 
@@ -102,7 +200,7 @@ const ChatBox = () => {
           const data = d.data();
           return {
             id: d.id,
-            uid: d.id,
+            uid: data.customerUid,
             name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
             role: "student",
             profileImageUrl: data.studentPhotoUrl || data.profileImageUrl || "", // ✅ FETCH CLOUDINARY URL
@@ -139,12 +237,10 @@ const ChatBox = () => {
   }, [instituteId]);
 
   /* ================= GROUPS ================= */
+  /* ================= GROUPS ================= */
   useEffect(() => {
     if (!user || !instituteId) return;
-    if (!target?.uid) {
-      console.log("Target UID Missing", target);
-      return;
-    }
+
     const q = query(
       collection(db, "groups"),
       where("members", "array-contains", user.uid),
@@ -319,8 +415,9 @@ const ChatBox = () => {
   /* ================= CREATE GROUP ================= */
   const submitCreateGroup = async () => {
     if (!groupName.trim() || selectedMembers.length === 0) return;
-    const members = [...new Set([user.uid, ...selectedMembers])]
-      .filter((m) => m);   // 🔥 REMOVE UNDEFINED USERS
+    const members = [...new Set([user.uid, ...selectedMembers])].filter(
+      (m) => m,
+    ); // 🔥 REMOVE UNDEFINED USERS
 
     const ref = await addDoc(collection(db, "groups"), {
       name: groupName,
@@ -363,8 +460,9 @@ const ChatBox = () => {
   const memberObjects = (
     groups.find((g) => g.id === activeChat?.id)?.members || []
   )
-    .map((uid) =>
-      users.find((u) => u.uid === uid) || { uid, name: "Unknown User" }
+    .map(
+      (uid) =>
+        users.find((u) => u.uid === uid) || { uid, name: "Unknown User" },
     )
     .filter(Boolean);
   return (
@@ -382,10 +480,11 @@ const ChatBox = () => {
               setActiveTab("chats");
               setScreen("chat");
             }}
-            className={`px-5 py-1 rounded-full text-sm font-medium ${activeTab === "chats"
-              ? "bg-orange-500 text-white"
-              : "bg-white border"
-              }`}
+            className={`px-5 py-1 rounded-full text-sm font-medium ${
+              activeTab === "chats"
+                ? "bg-orange-500 text-white"
+                : "bg-white border"
+            }`}
           >
             Chats
           </button>
@@ -395,10 +494,11 @@ const ChatBox = () => {
               setActiveTab("group");
               setScreen("chat");
             }}
-            className={`px-5 py-1 rounded-full text-sm font-medium ${activeTab === "group"
-              ? "bg-orange-500 text-white"
-              : "bg-white border"
-              }`}
+            className={`px-5 py-1 rounded-full text-sm font-medium ${
+              activeTab === "group"
+                ? "bg-orange-500 text-white"
+                : "bg-white border"
+            }`}
           >
             Group
           </button>
@@ -637,50 +737,58 @@ const ChatBox = () => {
         <div className="flex-1 overflow-y-auto">
           {activeTab === "group"
             ? groups.map((g) => (
-              <div
-                key={g.id}
-                onClick={() => {
-                  setActiveChat({ id: g.id, type: "group" });
-                  setActiveChatName(g.name);
-                  setScreen("chat");
-                }}
-                className="px-4 py-3 border-b hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-orange-200 flex items-center justify-center font-bold text-orange-700">
-                    {g.name?.charAt(0).toUpperCase()}
+                <div
+                  key={g.id}
+                  onClick={() => {
+                    setActiveChat({ id: g.id, type: "group" });
+                    setActiveChatName(g.name);
+                    setScreen("chat");
+                  }}
+                  className="px-4 py-3 border-b hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-orange-200 flex items-center justify-center font-bold text-orange-700">
+                      {g.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <span>{g.name}</span>
                   </div>
-                  <span>{g.name}</span>
-                </div>
 
-                {unreadCounts[g.id] > 0 && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                    {unreadCounts[g.id]}
-                  </span>
-                )}
-              </div>
-            ))
-            : users.map((u) => (
-              <div
-                key={u.uid}
-                onClick={() => startChat(u)}
-                className="px-4 py-3 border-b hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-              >
-                <div className="flex items-center gap-3">
-                  <img
-                    src={getValidImage(u.profileImageUrl, u.name)}
-                    className="w-9 h-9 rounded-full object-cover"
-                  />
-                  <span>{u.name}</span>
+                  {unreadCounts[g.id] > 0 && (
+                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      {unreadCounts[g.id]}
+                    </span>
+                  )}
                 </div>
+              ))
+            : [...users, ...chatUsers].map((u) => (
+                <div
+                  key={u.uid}
+                  onClick={() => startChat(u)}
+                  className="px-4 py-3 border-b hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={getValidImage(u.profileImageUrl, u.name)}
+                      className="w-9 h-9 rounded-full object-cover"
+                    />
+                    <div className="flex items-center gap-2">
+                      <span>{u.name}</span>
 
-                {unreadCounts[[user?.uid, u.uid].sort().join("_")] > 0 && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                    {unreadCounts[[user?.uid, u.uid].sort().join("_")]}
-                  </span>
-                )}
-              </div>
-            ))}
+                      {u.role === "outer" && (
+                        <span className="text-[10px] px-2 py-[2px] rounded-full bg-gray-200 text-gray-700">
+                          Outer
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {unreadCounts[[user?.uid, u.uid].sort().join("_")] > 0 && (
+                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      {unreadCounts[[user?.uid, u.uid].sort().join("_")]}
+                    </span>
+                  )}
+                </div>
+              ))}
         </div>
       </div>
     </div>

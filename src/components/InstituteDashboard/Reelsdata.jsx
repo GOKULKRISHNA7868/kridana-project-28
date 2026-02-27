@@ -21,6 +21,7 @@ import {
   Line,
 } from "recharts";
 import { ChevronDown } from "lucide-react";
+
 const AnalyticsPage = () => {
   const user = auth.currentUser;
 
@@ -59,14 +60,12 @@ const AnalyticsPage = () => {
         let ownerType = null;
         let ownerDoc = null;
 
-        // Detect institute login
         const instituteDoc = await getDoc(doc(db, "institutes", user.uid));
         if (instituteDoc.exists()) {
           ownerType = "institute";
           ownerDoc = instituteDoc;
         }
 
-        // Detect trainer login
         if (!ownerType) {
           const trainerDoc = await getDoc(doc(db, "trainers", user.uid));
           if (trainerDoc.exists()) {
@@ -75,23 +74,16 @@ const AnalyticsPage = () => {
           }
         }
 
-        if (!ownerType || !ownerDoc) {
-          // fallback static
-          return;
-        }
+        if (!ownerType || !ownerDoc) return;
 
         const tasks = [];
         const data = ownerDoc.data();
         const ownerId = ownerDoc.id;
 
-        console.log("🔥 REELS ARRAY:", data.reels); // DEBUG
-
         if (Array.isArray(data.reels)) {
           for (let idx = 0; idx < data.reels.length; idx++) {
             const reelId = `${ownerType}_${ownerId}_${idx}`;
-            const videoUrl = data.reels[idx]; // ✅ THIS IS CLOUDINARY URL
-
-            console.log("🎯 MAPPING:", reelId, videoUrl); // DEBUG
+            const videoUrl = data.reels[idx];
 
             tasks.push(
               Promise.all([
@@ -119,7 +111,7 @@ const AnalyticsPage = () => {
                     collection(db, "profileViews"),
                     where("ownerId", "==", ownerId),
                   ),
-                ), // ✅ REAL PROFILE VIEWS
+                ),
               ]).then(
                 ([
                   viewsSnap,
@@ -135,7 +127,7 @@ const AnalyticsPage = () => {
                   likes: likesSnap.size || 0,
                   dislikes: dislikeSnap.size || 0,
                   comments: commentsSnap.size || 0,
-                  profileViews: profileSnap.size || 0, // ✅ REAL DATA
+                  profileViews: profileSnap.size || 0,
                 }),
               ),
             );
@@ -145,9 +137,7 @@ const AnalyticsPage = () => {
         const reelStats = await Promise.all(tasks);
         setTopReels(reelStats);
 
-        /* ================= VIDEO API ================= */
-
-        if (reelStats.length === 0) return; // fallback to static UI
+        if (reelStats.length === 0) return;
 
         if (activeTab === "views") reelStats.sort((a, b) => b.views - a.views);
         if (activeTab === "likes") reelStats.sort((a, b) => b.likes - a.likes);
@@ -194,42 +184,88 @@ const AnalyticsPage = () => {
 
     fetchWorkforce();
   }, [user]);
+
   const handlePlayReel = (videoUrl) => {
-    console.log("🎥 VIDEO URL:", videoUrl);
-
-    if (!videoUrl) {
-      console.error("❌ Missing video URL");
-      return;
-    }
-
+    if (!videoUrl) return;
     setActiveVideoUrl(videoUrl);
     setShowVideoPopup(true);
   };
 
-  /* ================= GRAPH (STATIC SAFE) ================= */
+  /* ================= ===== REAL GRAPH DATA BASED ON STUDENTS FEES & SALARIES ===== ================= */
   useEffect(() => {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
+    if (!user) return;
 
-    const generated = months.map((month) => ({
-      month,
-      revenue: Math.floor(Math.random() * 50000) + 10000,
-    }));
+    const fetchGraphData = async () => {
+      try {
+        // Months array
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
 
-    setGraphData(generated);
-  }, []);
+        const currentYear = new Date().getFullYear();
+
+        const data = [];
+
+        for (let m = 0; m < 12; m++) {
+          const monthStr = (m + 1).toString().padStart(2, "0");
+
+          // Fetch student fees for this month
+          const studentSnap = await getDocs(
+            query(
+              collection(db, "studentFees"),
+              where("instituteId", "==", user.uid),
+              where("month", "==", monthStr),
+            ),
+          );
+
+          let totalIncome = 0;
+          studentSnap.forEach((doc) => {
+            totalIncome += doc.data().paidAmount || 0;
+          });
+
+          // Fetch trainer salaries for this month
+          const salarySnap = await getDocs(
+            query(
+              collection(db, "instituteSalaries"),
+              where("instituteId", "==", user.uid),
+              where("month", "==", monthStr),
+            ),
+          );
+
+          let totalSalary = 0;
+          salarySnap.forEach((doc) => {
+            totalSalary += doc.data().paidAmount || 0;
+          });
+
+          const profit = totalIncome - totalSalary;
+
+          data.push({
+            month: months[m],
+            revenue: totalIncome,
+            salary: totalSalary,
+            profit,
+          });
+        }
+
+        setGraphData(data);
+      } catch (err) {
+        console.error("Error fetching graph data:", err);
+      }
+    };
+
+    fetchGraphData();
+  }, [user]);
 
   /* ================= PAYROLL CALCULATIONS ================= */
   const highestMonth = graphData.reduce(
@@ -244,6 +280,7 @@ const AnalyticsPage = () => {
 
   const totalRevenue = graphData.reduce((sum, item) => sum + item.revenue, 0);
 
+  /* ================= RENDER ================= */
   return (
     <div className="p-6">
       {/* HEADER */}
@@ -251,23 +288,22 @@ const AnalyticsPage = () => {
         <h1 className="text-3xl font-bold">Growth & Performance Overview</h1>
 
         <div className="relative inline-block">
-<button
-  onClick={() => setShowDropdown(!showDropdown)}
-  className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-semibold shadow-md flex items-center gap-2"
->
-  <span>
-    {filterMonths === 1 && "1 Month"}
-    {filterMonths === 3 && "3 Months"}
-    {filterMonths === 6 && "6 Months"}
-  </span>
-
-  <ChevronDown
-    size={16}
-    className={`transition-transform duration-200 ${
-      showDropdown ? "rotate-180" : ""
-    }`}
-  />
-</button>
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-semibold shadow-md flex items-center gap-2"
+          >
+            <span>
+              {filterMonths === 1 && "1 Month"}
+              {filterMonths === 3 && "3 Months"}
+              {filterMonths === 6 && "6 Months"}
+            </span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform duration-200 ${
+                showDropdown ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
           {showDropdown && (
             <div className="absolute right-0 mt-3 w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
@@ -304,8 +340,6 @@ const AnalyticsPage = () => {
           )}
         </div>
       </div>
-
-      {/* ================= UI BELOW UNCHANGED ================= */}
 
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-4 gap-6 mb-8">
@@ -382,6 +416,7 @@ const AnalyticsPage = () => {
             <div>{reel.comments}</div>
           </div>
         ))}
+
         {showVideoPopup && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
             <div className="bg-black rounded-xl p-4 w-[90%] max-w-[500px] relative">
@@ -416,9 +451,11 @@ const AnalyticsPage = () => {
             <YAxis />
             <Tooltip />
             <Bar dataKey="revenue" fill="#f97316" />
+            <Bar dataKey="salary" fill="#ef4444" />
           </BarChart>
         </ResponsiveContainer>
       </div>
+
       <h2 className="text-xl font-semibold mt-10 mb-4">Payroll Overview</h2>
 
       <div className="grid md:grid-cols-3 gap-6">
@@ -430,6 +467,7 @@ const AnalyticsPage = () => {
               <YAxis />
               <Tooltip />
               <Line type="monotone" dataKey="revenue" stroke="#f97316" />
+              <Line type="monotone" dataKey="salary" stroke="#ef4444" />
             </LineChart>
           </ResponsiveContainer>
         </div>

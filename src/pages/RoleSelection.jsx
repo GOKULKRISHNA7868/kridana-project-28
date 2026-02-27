@@ -43,28 +43,37 @@ export default function RoleSelection() {
       ],
     },
   ];
-
+  const getSignupPath = (role) => {
+    switch (role) {
+      case "user":
+        return "/signup";
+      case "trainer":
+        return "/trainer-signup";
+      case "institute":
+        return "/institute-signup";
+      default:
+        return "/signup";
+    }
+  };
   return (
     <div className="min-h-screen flex items-center justify-center bg-white px-3 sm:px-6 md:px-10 lg:px-16">
       <div className="bg-white w-full max-w-sm sm:max-w-xl md:max-w-2xl lg:max-w-4xl rounded-lg p-4 sm:p-6 md:p-8 lg:p-10 text-center">
-
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-500 mb-2 sm:mb-3">
           Create Your Account
         </h1>
 
         <p className="text-gray-700 mb-8">
-          Get access to opportunities, institutes, and certified trainers in one location.
+          Get access to opportunities, institutes, and certified trainers in one
+          location.
         </p>
 
         <div className="bg-[#E7B89E] p-6 rounded-lg space-y-5">
-
           {roles.map((role) => (
             <div key={role.id}>
-
               {/* HEADER */}
               <div
                 onClick={() => toggleRole(role.id)}
-className={`flex justify-between items-center px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-5
+                className={`flex justify-between items-center px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-5
 border-2 border-orange-500 rounded-lg cursor-pointer
 bg-white hover:bg-orange-50 transition-all duration-300`}
               >
@@ -94,7 +103,7 @@ bg-white hover:bg-orange-50 transition-all duration-300`}
                   {/* BUTTONS */}
                   <div className="flex flex-col sm:flex-row justify-end gap-3 mt-5">
                     <button
-                      onClick={() => navigate(`/signup?role=${role.id}`)}
+                      onClick={() => navigate(getSignupPath(role.id))}
                       className="bg-orange-500 px-5 py-2 rounded-md text-white font-semibold hover:bg-orange-600"
                     >
                       Sign Up
@@ -107,15 +116,11 @@ bg-white hover:bg-orange-50 transition-all duration-300`}
                       Sign In
                     </button>
                   </div>
-
                 </div>
               </div>
-
             </div>
           ))}
-
         </div>
-
       </div>
     </div>
   );

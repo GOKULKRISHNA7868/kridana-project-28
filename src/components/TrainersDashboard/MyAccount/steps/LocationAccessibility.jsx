@@ -8,14 +8,19 @@ const LocationAccessibility = ({ setStep }) => {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false); // 🔥 new
 
   const [formData, setFormData] = useState({
     fullAddress: "",
     landmark: "",
     distance: "",
-    phoneNumber: "", // 🔁 renamed
+    phoneNumber: "",
     email: "",
     website: "",
+
+    // 🔥 new fields
+    latitude: "",
+    longitude: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -29,7 +34,6 @@ const LocationAccessibility = ({ setStep }) => {
       }
 
       try {
-        // 🔥 Dynamic trainers collection
         const docRef = doc(db, "trainers", user.uid);
         const docSnap = await getDoc(docRef);
 
@@ -43,9 +47,13 @@ const LocationAccessibility = ({ setStep }) => {
               "",
             landmark: data?.locationAccessibility?.landmark || "",
             distance: data?.locationAccessibility?.distance || "",
-            phoneNumber: data?.phoneNumber || "", // 🔥 from trainers
-            email: data?.email || "", // 🔥 from trainers
+            phoneNumber: data?.phoneNumber || "",
+            email: data?.email || "",
             website: data?.locationAccessibility?.website || "",
+
+            // 🔥 load geo
+            latitude: data?.latitude || "",
+            longitude: data?.longitude || "",
           });
         }
       } catch (error) {
@@ -73,6 +81,49 @@ const LocationAccessibility = ({ setStep }) => {
     }));
   };
 
+  // ================= GEO LOCATION =================
+  const fetchCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported");
+      return;
+    }
+
+    setGeoLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude.toString();
+        const lng = position.coords.longitude.toString();
+
+        try {
+          // Reverse geocoding
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+          );
+          const data = await res.json();
+
+          const address = data?.display_name || "";
+
+          setFormData((prev) => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng,
+            fullAddress: address, // 🔥 auto fill
+          }));
+        } catch (err) {
+          console.error("Reverse geocoding error:", err);
+        } finally {
+          setGeoLoading(false);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        alert("Unable to fetch location");
+        setGeoLoading(false);
+      },
+    );
+  };
+
   // ================= VALIDATION =================
   const validate = () => {
     let newErrors = {};
@@ -92,7 +143,6 @@ const LocationAccessibility = ({ setStep }) => {
       }
     });
 
-    // Email validation
     if (formData.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
@@ -100,7 +150,6 @@ const LocationAccessibility = ({ setStep }) => {
       }
     }
 
-    // Phone validation
     if (formData.phoneNumber) {
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(formData.phoneNumber)) {
@@ -133,17 +182,24 @@ const LocationAccessibility = ({ setStep }) => {
       await setDoc(
         docRef,
         {
-          phoneNumber: formData.phoneNumber, // 🔥 update main field
-          email: formData.email, // 🔥 update main field
+          phoneNumber: formData.phoneNumber,
+          email: formData.email,
+
+          // 🔥 required fields exactly as you asked
+          latitude: formData.latitude, // "17.48930115508228"
+          longitude: formData.longitude, // "78.3985042909833"
+          locationName: formData.fullAddress, // same as address string
+
           locationAccessibility: {
             fullAddress: formData.fullAddress,
             landmark: formData.landmark,
             distance: formData.distance,
             website: formData.website,
           },
+
           updatedAt: serverTimestamp(),
         },
-        { merge: true }, // ✅ safe update
+        { merge: true },
       );
 
       alert("Saved Successfully!");
@@ -167,6 +223,8 @@ const LocationAccessibility = ({ setStep }) => {
       phoneNumber: "",
       email: "",
       website: "",
+      latitude: "",
+      longitude: "",
     });
 
     setErrors({});
@@ -194,6 +252,17 @@ const LocationAccessibility = ({ setStep }) => {
         Location & Accessibility
       </h2>
 
+      {/* 🔥 GEO BUTTON (UI minimal, no layout change) */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={fetchCurrentLocation}
+          className="text-sm text-orange-600 font-medium"
+        >
+          {geoLoading ? "Fetching location..." : "Use Current Location"}
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* Full Address */}
         <div className="flex flex-col sm:col-span-2">
@@ -217,7 +286,7 @@ const LocationAccessibility = ({ setStep }) => {
         {[
           { label: "Land Mark", name: "landmark" },
           { label: "Distance From User (Auto)", name: "distance" },
-          { label: "Contact Number", name: "phoneNumber" }, // 🔥 changed
+          { label: "Contact Number", name: "phoneNumber" },
           { label: "E-mail Address", name: "email" },
         ].map((field) => (
           <div className="flex flex-col" key={field.name}>
@@ -237,7 +306,29 @@ const LocationAccessibility = ({ setStep }) => {
             )}
           </div>
         ))}
+        {/* Latitude */}
+        <div className="flex flex-col">
+          <label className="text-sm font-medium mb-2">Latitude</label>
+          <input
+            name="latitude"
+            value={formData.latitude}
+            onChange={handleChange}
+            className={inputClass("latitude")}
+            placeholder="17.48930115508228"
+          />
+        </div>
 
+        {/* Longitude */}
+        <div className="flex flex-col">
+          <label className="text-sm font-medium mb-2">Longitude</label>
+          <input
+            name="longitude"
+            value={formData.longitude}
+            onChange={handleChange}
+            className={inputClass("longitude")}
+            placeholder="78.3985042909833"
+          />
+        </div>
         {/* Website */}
         <div className="flex flex-col sm:col-span-2">
           <label className="text-sm font-medium mb-2">
