@@ -154,9 +154,10 @@ const ParticipantConfiguration = ({ formData, setFormData }) => {
                 type="button"
                 onClick={() => handleChange("ageGroup", age)}
                 className={`px-4 py-2 rounded-md border text-sm transition
-                  ${formData?.participants?.ageGroup === age
-                    ? "bg-orange-500 text-white border-orange-500"
-                    : "border-orange-400 text-gray-700 hover:bg-orange-50"
+                  ${
+                    formData?.participants?.ageGroup === age
+                      ? "bg-orange-500 text-white border-orange-500"
+                      : "border-orange-400 text-gray-700 hover:bg-orange-50"
                   }`}
               >
                 {age}
@@ -281,8 +282,9 @@ const ParticipantConfiguration = ({ formData, setFormData }) => {
 
                 <ChevronDown
                   size={18}
-                  className={`ml-2 transition-transform ${showCategoryDropdown ? "rotate-180" : ""
-                    }`}
+                  className={`ml-2 transition-transform ${
+                    showCategoryDropdown ? "rotate-180" : ""
+                  }`}
                 />
               </button>
 

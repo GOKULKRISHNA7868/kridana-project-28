@@ -101,68 +101,103 @@ const OperationsManagement = ({ formData, setFormData, eventId }) => {
   }, [attendanceEnabled]);
 
   /* ================= HANDLE STATUS ================= */
+  /* ================= HANDLE STATUS ================= */
   const handleAttendanceChange = async (customer, status) => {
-    const updated = {
+    const updatedAttendanceData = {
       ...attendanceData,
       [customer.id]: {
         ...attendanceData[customer.id],
         status,
-        name: customer.name,
-        category: customer.category,
-        type: customer.type,
-        instituteId: customer.instituteId,
-        updatedAt: serverTimestamp(),
+        reason: attendanceData[customer.id]?.reason || "",
       },
     };
 
-    setAttendanceData(updated);
+    setAttendanceData(updatedAttendanceData);
 
-    /* ---------- SAVE TO FIRESTORE ---------- */
     if (!eventId) return;
 
-    const ref = doc(db, "events", eventId, "eventAttendance", customer.id);
+    // Find the index of the customer in participants.customers
+    const eventRef = doc(db, "events", eventId);
+    const eventSnap = await getDoc(eventRef);
 
-    await setDoc(
-      ref,
-      {
-        customerId: customer.id,
-        name: customer.name,
-        category: customer.category,
-        type: customer.type,
-        instituteId: customer.instituteId,
-        status,
-        reason: attendanceData[customer.id]?.reason || "",
-        createdAt: attendanceData[customer.id]?.createdAt || serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
+    if (eventSnap.exists()) {
+      const eventData = eventSnap.data();
+      const customersArray = eventData?.participants?.customers || [];
+
+      const updatedCustomers = customersArray.map((c) => {
+        if (c.phone === customer.id || c.id === customer.id) {
+          return {
+            ...c,
+            attendance: {
+              status,
+              reason: updatedAttendanceData[customer.id]?.reason || "",
+              updatedAt: serverTimestamp(),
+            },
+          };
+        }
+        return c;
+      });
+
+      await setDoc(
+        eventRef,
+        {
+          participants: {
+            ...eventData.participants,
+            customers: updatedCustomers,
+          },
+        },
+        { merge: true },
+      );
+    }
   };
 
   /* ================= HANDLE REASON ================= */
   const handleReasonChange = async (customer, value) => {
-    setAttendanceData((prev) => ({
-      ...prev,
+    const updatedAttendanceData = {
+      ...attendanceData,
       [customer.id]: {
-        ...prev[customer.id],
+        ...attendanceData[customer.id],
         reason: value,
       },
-    }));
+    };
+
+    setAttendanceData(updatedAttendanceData);
 
     if (!eventId) return;
 
-    const ref = doc(db, "events", eventId, "eventAttendance", customer.id);
+    const eventRef = doc(db, "events", eventId);
+    const eventSnap = await getDoc(eventRef);
 
-    await setDoc(
-      ref,
-      {
-        reason: value,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
+    if (eventSnap.exists()) {
+      const eventData = eventSnap.data();
+      const customersArray = eventData?.participants?.customers || [];
+
+      const updatedCustomers = customersArray.map((c) => {
+        if (c.phone === customer.id || c.id === customer.id) {
+          return {
+            ...c,
+            attendance: {
+              status: updatedAttendanceData[customer.id]?.status || "",
+              reason: value,
+              updatedAt: serverTimestamp(),
+            },
+          };
+        }
+        return c;
+      });
+
+      await setDoc(
+        eventRef,
+        {
+          participants: {
+            ...eventData.participants,
+            customers: updatedCustomers,
+          },
+        },
+        { merge: true },
+      );
+    }
   };
-
   return (
     <div className="w-full space-y-6">
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">

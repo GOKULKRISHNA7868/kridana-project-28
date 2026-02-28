@@ -67,6 +67,8 @@ import Plans from "./pages/Plans.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import PaymentAndRefundPolicy from "./pages/PaymentAndRefundPolicy";
 import ChatBox from "./pages/ChatBox.jsx";
+import PaymentSuccess from "./components/PaymentSuccess.jsx";
+import PaymentFailed from "./components/PaymentFailed.jsx";
 function App() {
   const location = useLocation();
 
@@ -143,6 +145,8 @@ function App() {
               <Route path="/shop/:category" element={<ProductsGridPage />} />
               <Route path="/addresspage" element={<AddAddressPage />} />
               <Route path="/payment" element={<PaymentPage />} />
+              <Route path="/payment-failed" element={<PaymentFailed />} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/wishlist" element={<WishlistPage />} />
 

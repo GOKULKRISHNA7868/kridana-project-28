@@ -93,7 +93,6 @@ const BasicInformation = ({ formData, setFormData }) => {
   };
   useEffect(() => {
     const handleClickOutside = (e) => {
-
       if (eventTypeRef.current && !eventTypeRef.current.contains(e.target)) {
         setShowEventTypeDropdown(false);
       }
@@ -101,7 +100,6 @@ const BasicInformation = ({ formData, setFormData }) => {
       if (categoryRef.current && !categoryRef.current.contains(e.target)) {
         setShowCategoryDropdown(false);
       }
-
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -132,21 +130,26 @@ const BasicInformation = ({ formData, setFormData }) => {
               onClick={() => setShowEventTypeDropdown(!showEventTypeDropdown)}
               className={`${inputStyle} flex items-center justify-between text-left`}
             >
-              <span>
-                {formData?.basicInfo?.eventType || "Event Types"}
-              </span>
+              <span>{formData?.basicInfo?.eventType || "Event Types"}</span>
 
               <ChevronDown
                 size={18}
-                className={`ml-2 transition-transform ${showEventTypeDropdown ? "rotate-180" : ""
-                  }`}
+                className={`ml-2 transition-transform ${
+                  showEventTypeDropdown ? "rotate-180" : ""
+                }`}
               />
             </button>
 
             {showEventTypeDropdown && (
               <div className="absolute z-50 mt-1 w-full left-0 bg-white border rounded-lg shadow-md max-h-48 overflow-y-auto">
-
-                {["Tournament", "Training Camp", "Workshop", "Trial Session", "Fitness Event", "Other"].map((type) => (
+                {[
+                  "Tournament",
+                  "Training Camp",
+                  "Workshop",
+                  "Trial Session",
+                  "Fitness Event",
+                  "Other",
+                ].map((type) => (
                   <div
                     key={type}
                     onClick={() => {
@@ -158,7 +161,6 @@ const BasicInformation = ({ formData, setFormData }) => {
                     {type}
                   </div>
                 ))}
-
               </div>
             )}
           </div>
@@ -181,14 +183,14 @@ const BasicInformation = ({ formData, setFormData }) => {
 
               <ChevronDown
                 size={18}
-                className={`ml-2 transition-transform ${showCategoryDropdown ? "rotate-180" : ""
-                  }`}
+                className={`ml-2 transition-transform ${
+                  showCategoryDropdown ? "rotate-180" : ""
+                }`}
               />
             </button>
 
             {showCategoryDropdown && (
               <div className="absolute z-50 mt-1 w-full left-0 bg-white border rounded-lg shadow-md max-h-48 overflow-y-auto">
-
                 {[
                   "Martial Arts",
                   "Team Ball Sports",
@@ -199,7 +201,7 @@ const BasicInformation = ({ formData, setFormData }) => {
                   "Adventure & Outdoor Sports",
                   "Ice Sports",
                   "Wellness",
-                  "Dance"
+                  "Dance",
                 ].map((cat) => (
                   <div
                     key={cat}
@@ -212,7 +214,6 @@ const BasicInformation = ({ formData, setFormData }) => {
                     {cat}
                   </div>
                 ))}
-
               </div>
             )}
           </div>

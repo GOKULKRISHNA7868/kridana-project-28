@@ -11,7 +11,6 @@ export default function ViewInstitutes() {
 
   const [institutes, setInstitutes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
 
   const searchParams = new URLSearchParams(location.search);
   const defaultCategory = searchParams.get("category") || "";
@@ -305,29 +304,27 @@ export default function ViewInstitutes() {
     ],
   };
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (!currentUser) {
+    const fetchInstitutes = async () => {
+      try {
+        const snap = await getDocs(collection(db, "institutes"));
+        setInstitutes(
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+            profileImageUrl: d.data().profileImageUrl || "",
+            images: d.data().images || [],
+            videos: d.data().videos || [],
+            reels: d.data().reels || [],
+          })),
+        );
+      } catch (error) {
+        console.error("Error fetching institutes:", error);
+      } finally {
         setLoading(false);
-        return;
       }
+    };
 
-      const snap = await getDocs(collection(db, "institutes"));
-      setInstitutes(
-        snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-          profileImageUrl: d.data().profileImageUrl || "",
-          images: d.data().images || [],
-          videos: d.data().videos || [],
-          reels: d.data().reels || [],
-        })),
-      );
-
-      setLoading(false);
-    });
-
-    return () => unsub();
+    fetchInstitutes();
   }, []);
 
   const filteredInstitutes = useMemo(() => {
@@ -345,24 +342,6 @@ export default function ViewInstitutes() {
     return (
       <div className="min-h-screen flex items-center justify-center text-xl">
         Loading Institutes...
-      </div>
-    );
-
-  if (!user)
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-        <p className="text-2xl font-semibold text-[#ff7a00] mb-4">
-          ⚠️ Please login to see institutes
-        </p>
-        <p className="text-gray-600 mb-6">
-          You need to be logged in to view institute profiles.
-        </p>
-        <button
-          onClick={() => navigate("/RoleSelection")}
-          className="bg-[#ff7a00] text-white px-6 py-3 rounded-xl text-lg font-medium"
-        >
-          Go to Login
-        </button>
       </div>
     );
 

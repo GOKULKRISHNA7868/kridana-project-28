@@ -325,26 +325,24 @@ export default function ViewTrainers() {
   };
   /* 🔐 Fetch trainers */
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
+    const fetchTrainers = async () => {
+      try {
+        const snap = await getDocs(collection(db, "trainers"));
+        setTrainers(
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+            profileImageUrl: d.data().profileImageUrl || "",
+          })),
+        );
+      } catch (err) {
+        console.error("Error fetching trainers:", err);
+      } finally {
         setLoading(false);
-        console.log("ViewTrainers rendered");
-        return;
       }
+    };
 
-      const snap = await getDocs(collection(db, "trainers"));
-      setTrainers(
-        snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-          // Ensure profileImageUrl exists
-          profileImageUrl: d.data().profileImageUrl || "",
-        })),
-      );
-      setLoading(false);
-    });
-
-    return () => unsub();
+    fetchTrainers();
   }, []);
 
   /* 📍 Get Current Location */
