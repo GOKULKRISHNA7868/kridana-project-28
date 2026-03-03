@@ -1,80 +1,61 @@
-// src/pages/TestPayment.jsx
-import React, { useState } from "react";
-import axios from "axios";
+import React from "react";
 
-export default function TestPayment() {
-  const [loading, setLoading] = useState(false);
-
-  const handlePayment = async () => {
-    setLoading(true);
+export default function PayTest() {
+  const handlePay = async () => {
     try {
-      const order_id = `test_${Date.now()}`;
-      const customer = {
-        name: "Test User",
-        email: "test@example.com",
-        phone: "9999999999",
-      };
-
-      console.log("Initiating payment with order ID:", order_id);
-
-      // Call your deployed backend initiate route
-      const response = await axios.post(
-        "https://backendpayments.onrender.com/ccavenue/initiate",
+      const response = await fetch(
+        "https://backendpaymentserver.onrender.com/api/create-order",
         {
-          amount: 1, // ₹1
-          order_id,
-          customer,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
         },
       );
 
-      console.log("Backend response:", response.data);
+      const data = await response.json();
 
-      const { url, encRequest, access_code } = response.data;
+      console.log("Backend Data:", data);
 
-      if (!url || !encRequest || !access_code) {
-        console.error("Missing required data from backend:", response.data);
-        alert("Payment initiation failed: Missing data from backend");
+      if (!data.encRequest || !data.access_code) {
+        alert("Invalid payment data from server");
         return;
       }
 
-      // Create a form to auto-submit to CCAvenue
+      // ✅ Official CCAvenue PROD URL
+      const CCAVENUE_URL =
+        "https://secure.ccavenue.com/transaction/transaction.do?command=initiateTransaction";
+
+      // Create dynamic form
       const form = document.createElement("form");
       form.method = "POST";
-      form.action = url;
+      form.action = CCAVENUE_URL;
 
-      const encField = document.createElement("input");
-      encField.type = "hidden";
-      encField.name = "encRequest";
-      encField.value = encRequest;
-      form.appendChild(encField);
+      const encInput = document.createElement("input");
+      encInput.type = "hidden";
+      encInput.name = "encRequest";
+      encInput.value = data.encRequest;
 
-      const accessField = document.createElement("input");
-      accessField.type = "hidden";
-      accessField.name = "access_code";
-      accessField.value = access_code;
-      form.appendChild(accessField);
+      const accInput = document.createElement("input");
+      accInput.type = "hidden";
+      accInput.name = "access_code";
+      accInput.value = data.access_code;
 
+      form.appendChild(encInput);
+      form.appendChild(accInput);
       document.body.appendChild(form);
 
-      console.log("Submitting payment form to CCAvenue...");
+      console.log("Submitting form to CCAvenue...");
       form.submit();
-    } catch (err) {
-      console.error("Payment initiation failed:", err);
-      alert("Payment initiation failed. Check console for details.");
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Payment Error:", error);
+      alert("Payment initialization failed");
     }
   };
 
   return (
-    <div className="text-center mt-20">
-      <h1 className="text-2xl font-bold mb-4">Test Payment (₹1)</h1>
-      <button
-        onClick={handlePayment}
-        className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-        disabled={loading}
-      >
-        {loading ? "Processing..." : "Pay ₹1"}
+    <div style={{ padding: 40 }}>
+      <h2>Test Payment</h2>
+      <button onClick={handlePay} style={{ padding: 12 }}>
+        Pay ₹1
       </button>
     </div>
   );

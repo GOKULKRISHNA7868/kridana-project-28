@@ -66,7 +66,52 @@ export default function Plans() {
       navigate("/institutes/dashboard", { replace: true });
     }
   };
+  const startPaidSubscription = async (planType, amount) => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login first");
+      return;
+    }
 
+    const res = await fetch(
+      "https://backendpaymentserver.onrender.com/api/create-order",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          planType,
+          uid: user.uid,
+          email: user.email,
+        }),
+      },
+    );
+
+    const data = await res.json();
+
+    const CCAVENUE_URL =
+      "https://secure.ccavenue.com/transaction/transaction.do?command=initiateTransaction";
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = CCAVENUE_URL;
+
+    const encInput = document.createElement("input");
+    encInput.type = "hidden";
+    encInput.name = "encRequest";
+    encInput.value = data.encRequest;
+
+    const accInput = document.createElement("input");
+    accInput.type = "hidden";
+    accInput.name = "access_code";
+    accInput.value = data.access_code;
+
+    form.appendChild(encInput);
+    form.appendChild(accInput);
+    document.body.appendChild(form);
+
+    form.submit();
+  };
   return (
     <div className="min-h-screen bg-white flex flex-col items-center py-16">
       <h1 className="text-3xl font-bold mb-2">Get Started</h1>
@@ -123,7 +168,7 @@ export default function Plans() {
           </span>
 
           <h2 className="text-xl font-bold mb-2">
-            {billing === "monthly" ? "₹ 499/-" : "₹ 4,790 / Year"}
+            {billing === "monthly" ? "₹ 299/-" : "₹ 4,790 / Year"}
           </h2>
           <p className="text-lime-400 font-semibold mb-4">Trainer’s Plan</p>
 
@@ -135,8 +180,13 @@ export default function Plans() {
           </ul>
 
           <button
-            disabled
-            className="mt-6 w-full bg-gray-600 py-2 rounded cursor-not-allowed"
+            onClick={() =>
+              startPaidSubscription(
+                "TRAINER",
+                billing === "monthly" ? "299.00" : "4790.00",
+              )
+            }
+            className="mt-6 w-full bg-lime-400 text-black py-2 rounded font-semibold"
           >
             Subscribe
           </button>
@@ -162,8 +212,13 @@ export default function Plans() {
           </ul>
 
           <button
-            disabled
-            className="mt-6 w-full bg-gray-600 py-2 rounded cursor-not-allowed"
+            onClick={() =>
+              startPaidSubscription(
+                "INSTITUTE",
+                billing === "monthly" ? "999.00" : "9590.00",
+              )
+            }
+            className="mt-6 w-full bg-lime-400 text-black py-2 rounded font-semibold"
           >
             Subscribe
           </button>
